@@ -162,25 +162,36 @@ func can_swipe() -> bool:
 	
 	print("can_swipe: No ball in play or no player")
 	return false
-	
+
 func determine_shot_type(power: float, angle: float) -> String:
-	# Check if player is near kitchen (will use actual player position later)
-	# For now, approximate based on where swipe started
-	var court_y_estimate = touch_start.y / get_viewport().size.y
-	var near_kitchen = court_y_estimate > 0.5 and court_y_estimate < 0.65
+	# Get player reference for actual position
+	var player = main.get_node_or_null("Player")
 	
-	# Forward angle check (upward swipe)
-	var forward_angle = angle < -PI/4 and angle > -3*PI/4
-	
-	# Determine shot type based on prototype logic
-	if near_kitchen and power < 0.3 and forward_angle:
-		return "dink"
-	elif power < 0.3 and abs(angle) > PI/2:
-		return "drop"
-	elif power > 0.7:
-		return "power"
+	if player:
+		# Use actual player position
+		var court_pos = main.get_node("Court").screen_to_court(player.position) if main.has_node("Court") else Vector2.ZERO
+		var near_kitchen = abs(court_pos.y - main.KITCHEN_LINE_BOTTOM) < 30
+		
+		# Forward angle check (upward swipe)
+		var forward_angle = angle < -PI/4 and angle > -3*PI/4
+		
+		# Determine shot type based on prototype logic
+		if near_kitchen and power < 0.3 and forward_angle:
+			return "dink"
+		elif power < 0.3 and abs(angle) > PI/2:
+			return "drop"
+		elif power > 0.7:
+			return "power"
+		else:
+			return "normal"
 	else:
-		return "normal"
+		# Fallback if no player
+		if power < 0.3:
+			return "drop"
+		elif power > 0.7:
+			return "power"
+		else:
+			return "normal"
 
 # UI Functions
 func show_power_indicator() -> void:

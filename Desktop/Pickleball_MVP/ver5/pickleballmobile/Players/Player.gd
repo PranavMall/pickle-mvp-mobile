@@ -27,9 +27,9 @@ var is_server1: bool = true
 var target_position: Vector2
 
 # Visual components
-@onready var sprite: Sprite2D = $Sprite
-@onready var paddle: Node2D = $Paddle
-@onready var hit_area: Area2D = $HitArea
+var sprite: Sprite2D = null
+var paddle: Node2D = null
+var hit_area: Area2D = null
 
 # References
 var main: Node = null
@@ -49,13 +49,25 @@ func _ready() -> void:
 		print("ERROR: Player cannot find Main or Ball!")
 		return
 	
+	# Make sure player is visible
+	visible = true
+	z_index = 100  # Make sure it's above the court
+	
 	create_visuals()
 	setup_collision()
 	
 	# Set initial position
 	reset_to_default_position()
 	
+	# Debug output
 	print("Player ready at position: ", position)
+	print("Player global position: ", global_position)
+	print("Player visible: ", visible)
+	print("Player z_index: ", z_index)
+	print("Player has sprite: ", sprite != null)
+	if sprite:
+		print("Sprite visible: ", sprite.visible)
+		print("Sprite has texture: ", sprite.texture != null)
 
 func create_visuals() -> void:
 	# Create player sprite if not exists
@@ -63,6 +75,10 @@ func create_visuals() -> void:
 		sprite = Sprite2D.new()
 		sprite.name = "Sprite"
 		add_child(sprite)
+	
+	# Make sure sprite is visible
+	sprite.visible = true
+	sprite.z_index = 1  # Above the player base
 	
 	# Create player texture (blue circle for player)
 	var img = Image.create(36, 36, false, Image.FORMAT_RGBA8)
@@ -81,8 +97,14 @@ func create_visuals() -> void:
 				else:
 					# Border
 					img.set_pixel(x, y, Color.BLACK)
+			else:
+				# Transparent background
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
 	
 	sprite.texture = ImageTexture.create_from_image(img)
+	
+	print("Player texture created, size: 36x36")
+	print("Sprite texture assigned: ", sprite.texture != null)
 	
 	# Add court side indicator
 	var label = Label.new()
@@ -92,7 +114,7 @@ func create_visuals() -> void:
 	label.add_theme_font_size_override("font_size", 10)
 	sprite.add_child(label)
 	
-	# Create paddle (will be enhanced later)
+	# Create paddle
 	if not paddle:
 		paddle = Node2D.new()
 		paddle.name = "Paddle"
@@ -245,18 +267,18 @@ func check_hit_opportunity() -> void:
 func update_kitchen_status(delta: float) -> void:
 	var court_pos = main.get_node("Court").screen_to_court(position) if main.has_node("Court") else Vector2.ZERO
 	
-	var was_in_kitchen = in_kitchen
+	var was_in_kitchen_before = in_kitchen
 	in_kitchen = court_pos.y >= main.NET_Y and \
 				court_pos.y <= main.KITCHEN_LINE_BOTTOM and \
 				abs(court_pos.x - main.COURT_WIDTH/2) < main.COURT_WIDTH/2
 	
 	# Track kitchen entry/exit
-	if not was_in_kitchen and in_kitchen:
+	if not was_in_kitchen_before and in_kitchen:
 		kitchen_entry_time = Time.get_ticks_msec()
 		was_in_kitchen = true
 		feet_established = false
 		entered_kitchen.emit()
-	elif was_in_kitchen and not in_kitchen:
+	elif was_in_kitchen_before and not in_kitchen:
 		establishment_timer = 0.5
 		exited_kitchen.emit()
 	
@@ -277,12 +299,22 @@ func reset_to_default_position() -> void:
 	var court_x = main.COURT_WIDTH * (0.75 if court_side == "right" else 0.25)
 	var court_y = main.BASELINE_BOTTOM - main.SERVICE_LINE_DEPTH
 	
+	print("Court position target: ", court_x, ", ", court_y)
+	print("Court dimensions - WIDTH: ", main.COURT_WIDTH, " HEIGHT: ", main.COURT_HEIGHT)
+	print("Baseline bottom: ", main.BASELINE_BOTTOM)
+	print("Service line depth: ", main.SERVICE_LINE_DEPTH)
+	
 	# Convert to screen position
 	var screen_pos = main.court_to_screen(court_x, court_y)
 	position = screen_pos
 	target_position = screen_pos
 	
 	print("Player reset to position: ", position, " (court: ", court_x, ", ", court_y, ")")
+	print("Viewport size: ", get_viewport().size)
+	
+	# Force visible and on top
+	visible = true
+	z_index = 100
 
 func _on_body_entered(body: Node2D) -> void:
 	if body == ball and can_hit:

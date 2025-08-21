@@ -1,4 +1,4 @@
-# Main.gd - Foundation
+# Main.gd - Foundation with Day 4 Player System
 extends Node2D
 
 # Constants from prototype - EXACT VALUES
@@ -155,6 +155,59 @@ func create_swipe_detector() -> void:
 	else:
 		print("ERROR: SwipeDetector.gd not found!")
 
+func create_player() -> void:
+	# Create player character
+	var player = CharacterBody2D.new()
+	player.name = "Player"
+	player.z_index = 50  # Above court, below ball
+	add_child(player)
+	
+	# Attach player script - FIXED PATH
+	var player_script = load("res://Players/Player.gd")  # Fixed from "res://Player.gd"
+	if player_script:
+		player.set_script(player_script)
+		
+		# Force call _ready since it might not be called automatically
+		if player.has_method("_ready"):
+			player._ready()
+		
+		# Connect player signals
+		if player.has_signal("entered_kitchen"):
+			player.entered_kitchen.connect(_on_player_entered_kitchen)
+		if player.has_signal("exited_kitchen"):
+			player.exited_kitchen.connect(_on_player_exited_kitchen)
+		if player.has_signal("ready_to_hit"):
+			player.ready_to_hit.connect(_on_player_ready_to_hit)
+		
+		print("Player created and connected")
+		print("Player position after creation: ", player.position)
+		print("Player visible: ", player.visible)
+	else:
+		print("ERROR: Player.gd not found at res://Players/Player.gd!")
+
+func _on_player_entered_kitchen() -> void:
+	print("Player entered kitchen")
+	update_kitchen_pressure(5)
+
+func _on_player_exited_kitchen() -> void:
+	print("Player exited kitchen")
+
+func _on_player_ready_to_hit() -> void:
+	# Visual feedback when player can hit
+	var instructions = get_node_or_null("UI/HUD/Instructions")
+	if instructions and game_state.ball_in_play:
+		instructions.text = "Swipe to hit!"
+
+func update_kitchen_pressure(amount: float) -> void:
+	game_state.kitchen_pressure = clamp(
+		game_state.kitchen_pressure + amount,
+		0,
+		game_state.kitchen_pressure_max
+	)
+	
+	# Update UI
+	update_ui()
+
 func _on_swipe_started() -> void:
 	print("Player starting swipe...")
 
@@ -225,47 +278,6 @@ func player_serve_with_swipe(angle: float, power: float) -> void:
 	game_state.game_active = true
 	game_state.rally_count = 0
 
-func create_player() -> void:
-	# Create player character
-	var player = CharacterBody2D.new()
-	player.name = "Player"
-	player.z_index = 50  # Above court, below ball
-	add_child(player)
-	
-	# Attach player script
-	var player_script = load("res://Players/Player.gd")
-	if player_script:
-		player.set_script(player_script)
-		
-		# Connect player signals
-		player.entered_kitchen.connect(_on_player_entered_kitchen)
-		player.exited_kitchen.connect(_on_player_exited_kitchen)
-		player.ready_to_hit.connect(_on_player_ready_to_hit)
-		
-		print("Player created and connected")
-	else:
-		print("ERROR: Player.gd not found!")
-
-func _on_player_entered_kitchen() -> void:
-	print("Player entered kitchen")
-	update_kitchen_pressure(5)
-
-func _on_player_exited_kitchen() -> void:
-	print("Player exited kitchen")
-
-func _on_player_ready_to_hit() -> void:
-	# Visual feedback when player can hit
-	var instructions = get_node_or_null("UI/HUD/Instructions")
-	if instructions and game_state.ball_in_play:
-		instructions.text = "Swipe to hit!"
-
-func update_kitchen_pressure(amount: float) -> void:
-	game_state.kitchen_pressure = clamp(
-		game_state.kitchen_pressure + amount,
-		0,
-		game_state.kitchen_pressure_max
-	)
-
 func update_ui() -> void:
 	# Update score display
 	var score_label = get_node_or_null("UI/HUD/TopPanel/ScoreLabel")
@@ -279,74 +291,6 @@ func update_ui() -> void:
 		ui.update_mastery_fill(percent)
 	if ui and ui.has_method("update_score"):
 		ui.update_score(game_state.player_score, game_state.opponent_score, game_state.server_number)
-
-func create_ball() -> void:
-	# Method 1: Load and instantiate Ball scene (if you created Ball.tscn)
-	var ball_scene = load("res://Ball/Ball.tscn")
-	if ball_scene:
-		var ball = ball_scene.instantiate()
-		add_child(ball)
-		print("Ball scene instantiated and added")
-		return
-	
-	# Method 2: Create ball programmatically if scene doesn't exist
-	print("Ball.tscn not found, creating programmatically...")
-	
-	var ball = CharacterBody2D.new()
-	ball.name = "Ball"
-	
-	# Add collision shape
-	var collision = CollisionShape2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = 8
-	collision.shape = shape
-	ball.add_child(collision)
-	
-	# Add sprite
-	var sprite = Sprite2D.new()
-	sprite.name = "Sprite"
-	# Create a simple yellow circle texture
-	var img = Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	for x in 16:
-		for y in 16:
-			var dx = x - 8
-			var dy = y - 8
-			if dx*dx + dy*dy <= 64:
-				img.set_pixel(x, y, Color.YELLOW)
-	sprite.texture = ImageTexture.create_from_image(img)
-	ball.add_child(sprite)
-	
-	# Add shadow
-	var shadow = Sprite2D.new()
-	shadow.name = "Shadow"
-	shadow.modulate = Color(0, 0, 0, 0.5)
-	ball.add_child(shadow)
-	ball.move_child(shadow, 0)  # Put shadow behind
-	
-	# Add trail
-	var trail = Line2D.new()
-	trail.name = "Trail"
-	trail.width = 3.0
-	trail.default_color = Color(1.0, 0.84, 0, 0.3)
-	ball.add_child(trail)
-	ball.move_child(trail, 0)
-	
-	# Now add the complete ball to scene
-	add_child(ball)
-	
-	# Attach the script
-	var ball_script = load("res://Ball/Ball.gd")
-	if ball_script:
-		ball.set_script(ball_script)
-		print("Ball script attached")
-		
-		# Set initial position manually since _ready might not trigger properly
-		ball.position = court_to_screen(COURT_WIDTH / 2.0, COURT_HEIGHT - 100)
-		print("Ball positioned at: ", ball.position)
-	else:
-		print("ERROR: Ball.gd script not found at res://Ball/Ball.gd")
-	
-	print("Ball created and added to scene")
 
 func test_perspective_points() -> void:
 	# Test court corners to verify perspective math
