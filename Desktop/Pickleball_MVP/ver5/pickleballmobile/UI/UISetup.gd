@@ -236,18 +236,8 @@ func create_debug_info(parent: Control) -> void:
 
 func _on_kitchen_button_pressed() -> void:
 	print("Kitchen button pressed!")
-	if main:
-		var player = main.get_node_or_null("Player")
-		if not player:
-			return
-		
-		match main.game_state.kitchen_state:
-			main.KitchenState.AVAILABLE:
-				player.enter_kitchen()
-				update_kitchen_button("ACTIVE")
-			main.KitchenState.ACTIVE, main.KitchenState.MUST_EXIT, main.KitchenState.WARNING:
-				player.exit_kitchen()
-				update_kitchen_button("DISABLED")
+	if main and main.has_method("handle_kitchen_button_press"):
+		main.handle_kitchen_button_press()
 
 func _on_mastery_button_pressed() -> void:
 	print("Mastery button pressed!")
