@@ -158,7 +158,9 @@ func can_swipe() -> bool:
 	
 	# 2. During rally, check if player can hit
 	if main.game_state.ball_in_play and player:
-		return player.can_hit
+		# Check if player has can_hit metadata set
+		var can_hit = player.get_meta("can_hit", false)
+		return can_hit
 	
 	print("can_swipe: No ball in play or no player")
 	return false

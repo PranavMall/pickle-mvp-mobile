@@ -1,4 +1,4 @@
-# Main.gd - Foundation with Day 4 Player System and Temporary Opponent
+# Main.gd - Foundation with Day 4 Player System FIXED
 extends Node2D
 
 # Constants from prototype - EXACT VALUES
@@ -89,6 +89,9 @@ var court_scale: float = 1.0
 # TEMPORARY OPPONENT FOR TESTING
 var temp_opponent = null
 
+# Keep reference to player
+var player_node = null
+
 func _ready() -> void:
 	# Get screen dimensions
 	screen_width = get_viewport().size.x
@@ -107,23 +110,78 @@ func _ready() -> void:
 	# Initialize game
 	init_game()
 	
-	# TEST: Verify perspective calculations
-	test_perspective_points()
-	
 	# Ball is now part of the scene, no need to create it
 	print("Main scene ready - Ball should be in scene tree")
 	
 	# Create swipe detector for Day 3
 	create_swipe_detector()
 	
-	# Create player for Day 4
-	create_player()
+	# Create player for Day 4 - FIXED VERSION
+	await get_tree().process_frame  # Wait one frame
+	create_player_fixed()
 	
 	# CREATE TEMPORARY OPPONENT FOR TESTING
 	create_temp_opponent()
+
+func create_player_fixed() -> void:
+	print("Creating player with fixed approach...")
 	
-	# TEST: Add simple input test directly in Main
-	set_process_input(true)
+	# Create a simple player as CharacterBody2D
+	player_node = CharacterBody2D.new()
+	player_node.name = "Player"
+	add_child(player_node)
+	
+	# Create the visual sprite
+	var sprite = Sprite2D.new()
+	sprite.name = "Sprite"
+	
+	# Create blue circle texture
+	var img = Image.create(36, 36, false, Image.FORMAT_RGBA8)
+	var player_color = Color(0.2, 0.4, 0.8)  # Blue
+	
+	for x in range(36):
+		for y in range(36):
+			var dx = x - 18.0
+			var dy = y - 18.0
+			var dist = sqrt(dx*dx + dy*dy)
+			
+			if dist <= 18:
+				if dist <= 16:
+					img.set_pixel(x, y, player_color)
+				else:
+					img.set_pixel(x, y, Color.BLACK)
+			else:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+	
+	sprite.texture = ImageTexture.create_from_image(img)
+	sprite.z_index = 1
+	player_node.add_child(sprite)
+	
+	# Add collision
+	var collision = CollisionShape2D.new()
+	var shape = CircleShape2D.new()
+	shape.radius = 18
+	collision.shape = shape
+	player_node.add_child(collision)
+	
+	# Set initial position
+	var court_x = COURT_WIDTH * 0.75  # Right side
+	var court_y = BASELINE_BOTTOM - SERVICE_LINE_DEPTH
+	var screen_pos = court_to_screen(court_x, court_y)
+	player_node.position = screen_pos
+	player_node.z_index = 50
+	
+	# Add court side label
+	var label = Label.new()
+	label.text = "Y"
+	label.position = Vector2(-5, -5)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_font_size_override("font_size", 10)
+	sprite.add_child(label)
+	
+	print("Player created at position: ", player_node.position)
+	print("Player has sprite: ", sprite != null)
+	print("Player visible: ", player_node.visible)
 
 func create_temp_opponent() -> void:
 	print("Creating temporary opponent for testing...")
@@ -134,7 +192,7 @@ func create_temp_opponent() -> void:
 		"y": BASELINE_TOP + SERVICE_LINE_DEPTH,
 		"can_hit": false,
 		"last_hit_time": 0,
-		"court_side": "left"  # Start on left side
+		"court_side": "left"
 	}
 	
 	print("Temp opponent created at position: ", temp_opponent.x, ", ", temp_opponent.y)
@@ -177,15 +235,15 @@ func update_temp_opponent(delta: float) -> void:
 								ball_court_pos.y < NET_Y and \
 								ball.in_flight and \
 								time_since_hit > HIT_COOLDOWN * 1000 and \
-								ball.bounces > 0  # Wait for ball to bounce (return of serve)
+								ball.bounces > 0
 		
 		# Hit the ball back if possible
 		if temp_opponent.can_hit:
 			print("Opponent hitting ball back!")
 			
 			# Calculate return shot toward player's court
-			var return_target_x = COURT_WIDTH / 2.0 + randf_range(-50, 50)  # Add some variety
-			var return_target_y = BASELINE_BOTTOM - 100  # Aim for mid-court
+			var return_target_x = COURT_WIDTH / 2.0 + randf_range(-50, 50)
+			var return_target_y = BASELINE_BOTTOM - 100
 			
 			var dx = return_target_x - ball_court_pos.x
 			var dy = return_target_y - ball_court_pos.y
@@ -196,13 +254,13 @@ func update_temp_opponent(delta: float) -> void:
 				cos(angle) * 200,
 				sin(angle) * 200
 			)
-			ball.vertical_velocity = 100  # Arc for the return
+			ball.vertical_velocity = 100
 			ball.height = max(ball.height, 10.0)
 			ball.bounces = 0
 			ball.bounces_on_current_side = 0
 			ball.last_hit_team = "opponent"
-			ball.in_flight = true  # MAKE SURE THIS IS SET!
-			ball.ball_speed = 200  # Set the ball speed
+			ball.in_flight = true
+			ball.ball_speed = 200
 			
 			temp_opponent.last_hit_time = Time.get_ticks_msec()
 			temp_opponent.can_hit = false
@@ -212,19 +270,73 @@ func update_temp_opponent(delta: float) -> void:
 			game_state.consecutive_hits += 1
 			game_state.rally_count += 1
 			
-			print("Ball velocity after opponent hit: ", ball.velocity)
+			print("Ball returned! Velocity: ", ball.velocity)
 			print("Ball in_flight: ", ball.in_flight)
 
-func _input(event: InputEvent) -> void:
-	# TEST: See if Main is receiving input
-	if event is InputEventMouseButton:
-		print("MAIN received mouse button event: ", event.button_index, " pressed: ", event.pressed)
+func update_player_movement(delta: float) -> void:
+	if not player_node:
+		return
+	
+	var ball = get_node_or_null("Ball")
+	if not ball:
+		return
+	
+	# Don't move during serve or when ball is not in play
+	if not game_state.ball_in_play or game_state.waiting_for_serve:
+		return
+	
+	# Check if ball has the in_flight property (it should)
+	var ball_in_flight = false
+	if ball.has_method("get") and ball.get("in_flight") != null:
+		ball_in_flight = ball.get("in_flight")
+	
+	if not ball_in_flight:
+		return
+	
+	# Get ball court position
+	var ball_court_pos = ball.screen_to_court(ball.global_position)
+	var ball_on_our_side = ball_court_pos.y > NET_Y
+	
+	# Only move when ball is on our side AND it's not a serve
+	if ball_on_our_side and game_state.consecutive_hits > 0:
+		# Move player toward ball X position
+		var target_x = ball.global_position.x
+		var move_speed = PLAYER_SPEED * delta
+		
+		if abs(player_node.position.x - target_x) > move_speed:
+			if player_node.position.x < target_x:
+				player_node.position.x += move_speed
+			else:
+				player_node.position.x -= move_speed
+		else:
+			player_node.position.x = target_x
+		
+		# Keep player in bounds
+		player_node.position.x = clamp(player_node.position.x, 50, screen_width - 50)
+		
+		# Check if player can hit
+		var dist_to_ball = player_node.position.distance_to(ball.position)
+		if dist_to_ball < HIT_DISTANCE and ball.height < 40:
+			# Visual feedback - brighten player
+			if player_node.has_node("Sprite"):
+				player_node.get_node("Sprite").modulate = Color(1.2, 1.2, 1.2)
+				# Store that player can hit for swipe detection
+				player_node.set_meta("can_hit", true)
+		else:
+			if player_node.has_node("Sprite"):
+				player_node.get_node("Sprite").modulate = Color.WHITE
+				player_node.set_meta("can_hit", false)
+	else:
+		# Reset can_hit when ball is not on our side
+		player_node.set_meta("can_hit", false)
+		if player_node.has_node("Sprite"):
+			player_node.get_node("Sprite").modulate = Color.WHITE
 
 func create_swipe_detector() -> void:
 	# Create SwipeDetector node (Node2D for drawing capabilities)
 	var swipe_detector = Node2D.new()
 	swipe_detector.name = "SwipeDetector"
-	swipe_detector.z_index = 150  # Draw on top of everything
+	swipe_detector.z_index = 150
 	add_child(swipe_detector)
 	
 	# Attach script
@@ -232,77 +344,15 @@ func create_swipe_detector() -> void:
 	if swipe_script:
 		swipe_detector.set_script(swipe_script)
 		
-		# Force call _ready since it might not be called automatically
+		# Force call _ready
 		if swipe_detector.has_method("_ready"):
 			swipe_detector._ready()
 		
-		# Connect signals with error checking
-		var result1 = swipe_detector.swipe_completed.connect(_on_swipe_completed)
-		var result2 = swipe_detector.swipe_started.connect(_on_swipe_started)
+		# Connect signals
+		swipe_detector.swipe_completed.connect(_on_swipe_completed)
+		swipe_detector.swipe_started.connect(_on_swipe_started)
 		
-		if result1 == OK and result2 == OK:
-			print("SwipeDetector created and connected successfully")
-		else:
-			print("ERROR: Failed to connect SwipeDetector signals")
-		
-		# Verify it's processing input
-		print("SwipeDetector is processing input: ", swipe_detector.is_processing_input())
-		print("SwipeDetector is processing unhandled input: ", swipe_detector.is_processing_unhandled_input())
-	else:
-		print("ERROR: SwipeDetector.gd not found!")
-
-func create_player() -> void:
-	# Create player character
-	var player = CharacterBody2D.new()
-	player.name = "Player"
-	player.z_index = 50  # Above court, below ball
-	add_child(player)
-	
-	# Attach player script - FIXED PATH
-	var player_script = load("res://Players/Player.gd")  # Fixed from "res://Player.gd"
-	if player_script:
-		player.set_script(player_script)
-		
-		# Force call _ready since it might not be called automatically
-		if player.has_method("_ready"):
-			player._ready()
-		
-		# Connect player signals
-		if player.has_signal("entered_kitchen"):
-			player.entered_kitchen.connect(_on_player_entered_kitchen)
-		if player.has_signal("exited_kitchen"):
-			player.exited_kitchen.connect(_on_player_exited_kitchen)
-		if player.has_signal("ready_to_hit"):
-			player.ready_to_hit.connect(_on_player_ready_to_hit)
-		
-		print("Player created and connected")
-		print("Player position after creation: ", player.position)
-		print("Player visible: ", player.visible)
-	else:
-		print("ERROR: Player.gd not found at res://Players/Player.gd!")
-
-func _on_player_entered_kitchen() -> void:
-	print("Player entered kitchen")
-	update_kitchen_pressure(5)
-
-func _on_player_exited_kitchen() -> void:
-	print("Player exited kitchen")
-
-func _on_player_ready_to_hit() -> void:
-	# Visual feedback when player can hit
-	var instructions = get_node_or_null("UI/HUD/Instructions")
-	if instructions and game_state.ball_in_play:
-		instructions.text = "Swipe to hit!"
-
-func update_kitchen_pressure(amount: float) -> void:
-	game_state.kitchen_pressure = clamp(
-		game_state.kitchen_pressure + amount,
-		0,
-		game_state.kitchen_pressure_max
-	)
-	
-	# Update UI
-	update_ui()
+		print("SwipeDetector created and connected")
 
 func _on_swipe_started() -> void:
 	print("Player starting swipe...")
@@ -315,17 +365,19 @@ func _on_swipe_completed(angle: float, power: float, shot_type: String) -> void:
 		player_serve_with_swipe(angle, power)
 		return
 	
-	# Handle regular hit
-	if game_state.ball_in_play:
-		var player = get_node_or_null("Player")
-		if player and player.can_hit:
-			var ball = get_node_or_null("Ball")
-			if ball:
+	# Handle regular hit during rally
+	if game_state.ball_in_play and player_node:
+		var ball = get_node_or_null("Ball")
+		if ball:
+			# Check if player can hit (stored as metadata)
+			var can_hit = player_node.get_meta("can_hit", false)
+			if can_hit:
 				ball.receive_hit(angle, power, shot_type)
-				
-				# Update game state
 				game_state.rally_count += 1
 				update_ui()
+				print("Player hit the ball!")
+			else:
+				print("Player too far from ball to hit")
 
 func player_serve_with_swipe(angle: float, power: float) -> void:
 	print("Player serving with swipe!")
@@ -341,7 +393,7 @@ func player_serve_with_swipe(angle: float, power: float) -> void:
 	game_state.is_serve_in_progress = true
 	
 	# Determine target service box
-	game_state.expected_service_box = "left"  # Will improve later
+	game_state.expected_service_box = "left"
 	
 	# Get ball and serve
 	var ball = get_node_or_null("Ball")
@@ -352,13 +404,12 @@ func player_serve_with_swipe(angle: float, power: float) -> void:
 		ball.height = 40.0
 		
 		# Force upward angle for serve to cross net
-		# Serve must go up (negative angle) to cross net
 		var serve_angle = angle
-		if serve_angle > -PI/4:  # If angle is too horizontal or downward
-			serve_angle = -PI/3  # Force upward angle
+		if serve_angle > -PI/4:
+			serve_angle = -PI/3
 		
-		# Boost power for serves to ensure it crosses net
-		var serve_power = max(power, 0.5)  # Minimum 50% power for serves
+		# Boost power for serves
+		var serve_power = max(power, 0.5)
 		
 		# Use special serve parameters
 		ball.receive_serve(serve_angle, serve_power)
@@ -378,40 +429,16 @@ func update_ui() -> void:
 	var score_label = get_node_or_null("UI/HUD/TopPanel/ScoreLabel")
 	if score_label:
 		score_label.text = "%d-%d-%d" % [game_state.player_score, game_state.opponent_score, game_state.server_number]
-	
-	# Update other UI elements through UISetup
-	var ui = get_node_or_null("UI")
-	if ui and ui.has_method("update_mastery_fill"):
-		var percent = (game_state.kitchen_pressure / game_state.kitchen_pressure_max) * 100
-		ui.update_mastery_fill(percent)
-	if ui and ui.has_method("update_score"):
-		ui.update_score(game_state.player_score, game_state.opponent_score, game_state.server_number)
-
-func test_perspective_points() -> void:
-	# Test court corners to verify perspective math
-	var test_points = [
-		Vector2(0, 0),  # Top-left
-		Vector2(COURT_WIDTH, 0),  # Top-right
-		Vector2(0, COURT_HEIGHT),  # Bottom-left
-		Vector2(COURT_WIDTH, COURT_HEIGHT),  # Bottom-right
-		Vector2(COURT_WIDTH/2, NET_Y),  # Center net
-		Vector2(COURT_WIDTH/2, KITCHEN_LINE_TOP),  # Kitchen top
-		Vector2(COURT_WIDTH/2, KITCHEN_LINE_BOTTOM),  # Kitchen bottom
-		Vector2(COURT_WIDTH/2, COURT_HEIGHT - 100)  # Ball start position
-	]
-	
-	print("=== Perspective Test Points ===")
-	for point in test_points:
-		var screen_pos = court_to_screen(point.x, point.y)
-		print("Court ", point, " -> Screen ", screen_pos)
-	print("===============================")
 
 func _process(delta: float) -> void:
 	if game_state.game_active:
 		update_game(delta)
 		
-		# UPDATE TEMP OPPONENT
+		# Update temp opponent
 		update_temp_opponent(delta)
+		
+		# Update player movement
+		update_player_movement(delta)
 	
 	# Update messages
 	update_messages(delta)
@@ -426,11 +453,8 @@ func _draw() -> void:
 	# DRAW TEMP OPPONENT
 	if temp_opponent:
 		var opp_screen_pos = court_to_screen(temp_opponent.x, temp_opponent.y)
-		# Draw red circle for opponent
 		draw_circle(opp_screen_pos, 18, Color(0.8, 0.2, 0.2))
-		# Draw border
 		draw_arc(opp_screen_pos, 18, 0, TAU, 32, Color.BLACK, 2.0)
-		# Draw "O" label
 		var font = ThemeDB.fallback_font
 		draw_string(font, opp_screen_pos + Vector2(-5, 5), "O", 
 					HORIZONTAL_ALIGNMENT_CENTER, -1, 12, Color.WHITE)
@@ -453,8 +477,6 @@ func init_game() -> void:
 	if instructions:
 		instructions.text = "Swipe up to serve!"
 	
-	# This will be called once players are set up
-	# reset_positions()
 	update_ui()
 
 func update_game(delta: float) -> void:
@@ -502,7 +524,7 @@ func draw_court() -> void:
 	
 	# Draw court surface
 	var court_points = PackedVector2Array([top_left, top_right, bottom_right, bottom_left])
-	draw_colored_polygon(court_points, Color(0.18, 0.49, 0.20))  # #2E7D32
+	draw_colored_polygon(court_points, Color(0.18, 0.49, 0.20))
 	
 	# Draw court texture lines
 	for i in range(11):
@@ -512,7 +534,7 @@ func draw_court() -> void:
 		var screen_y = lerp(top_left.y, bottom_left.y, y_factor)
 		
 		draw_line(Vector2(left_x, screen_y), Vector2(right_x, screen_y), 
-				  Color(0.14, 0.42, 0.21), 1.0)  # #236B35
+				  Color(0.14, 0.42, 0.21), 1.0)
 	
 	# Draw kitchen zones
 	draw_kitchen_zones(center_x, court_top)
@@ -543,10 +565,8 @@ func draw_kitchen_zones(center_x: float, court_top: float) -> void:
 	])
 	draw_colored_polygon(top_kitchen_points, kitchen_color)
 	
-	# Bottom kitchen (with potential flash)
+	# Bottom kitchen
 	var bottom_color = kitchen_color
-	if game_state.kitchen_flash and game_state.kitchen_flash.active and game_state.kitchen_flash.side == "bottom":
-		bottom_color = Color(1.0, 0, 0, game_state.kitchen_flash.opacity)
 	
 	var bottom_kitchen_points = PackedVector2Array([
 		Vector2(center_x - (COURT_WIDTH/2.0) * net_scale * court_scale, net_pos.y),
@@ -645,11 +665,10 @@ func draw_dashed_line_custom(from: Vector2, to: Vector2, color: Color, width: fl
 		current_length += dash_length + gap_length
 
 func get_kitchen_zone_color() -> Color:
-	# Dynamic kitchen zone coloring based on state
 	if game_state.in_kitchen:
-		return Color(1.0, 0.78, 0, 0.15)  # Gold when active
+		return Color(1.0, 0.78, 0, 0.15)
 	else:
-		return Color(1.0, 0.78, 0, 0.06)  # Subtle gold
+		return Color(1.0, 0.78, 0, 0.06)
 
 func update_kitchen_state_machine(delta: float) -> void:
 	if game_state.kitchen_state_timer > 0:
@@ -660,22 +679,6 @@ func update_kitchen_state_machine(delta: float) -> void:
 			if game_state.kitchen_state_timer <= 0:
 				game_state.kitchen_state = KitchenState.DISABLED
 				show_message("Opportunity missed!", COURT_WIDTH/2.0, NET_Y + 50, Color(1.0, 0.6, 0))
-		
-		KitchenState.ACTIVE:
-			# Check if ball is high and coming to our side
-			pass
-		
-		KitchenState.MUST_EXIT:
-			if game_state.kitchen_state_timer <= 0:
-				game_state.kitchen_state = KitchenState.WARNING
-		
-		KitchenState.WARNING:
-			# Check for violation
-			pass
-		
-		KitchenState.COOLDOWN:
-			if game_state.kitchen_state_timer <= 0:
-				game_state.kitchen_state = KitchenState.DISABLED
 
 func end_mastery_mode() -> void:
 	game_state.kitchen_mastery = false
@@ -701,7 +704,6 @@ func update_messages(delta: float) -> void:
 		if msg.life <= 0:
 			messages_to_remove.append(i)
 	
-	# Remove expired messages
 	for i in range(messages_to_remove.size() - 1, -1, -1):
 		messages.remove_at(messages_to_remove[i])
 
