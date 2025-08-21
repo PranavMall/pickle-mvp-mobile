@@ -272,6 +272,9 @@ func update_player_movement(delta: float) -> void:
 		# PARTNER MOVEMENT (Left side primary)
 		update_individual_player(partner_node, ball, partner_speed, not ball_on_right or not player_close_enough(ball))
 		
+		# PARTNER AI HIT LOGIC
+		check_partner_hit(ball, delta)
+		
 		# COLLISION AVOIDANCE
 		avoid_collision_between_players()
 
@@ -350,6 +353,75 @@ func avoid_collision_between_players() -> void:
 		# Keep both in bounds
 		player_node.position.x = clamp(player_node.position.x, 40, screen_width - 40)
 		partner_node.position.x = clamp(partner_node.position.x, 40, screen_width - 40)
+
+func check_partner_hit(ball: Node, delta: float) -> void:
+	# Partner AI hit logic - only if partner can hit and player can't
+	if not partner_node.get_meta("can_hit", false):
+		return
+	
+	if player_node.get_meta("can_hit", false):
+		return  # Let player have priority
+	
+	# Check if ball has bounced (required for serve/return)
+	if game_state.consecutive_hits < 2 and ball.bounces == 0:
+		return  # Must let serve/return bounce
+	
+	# Check if it's been hit by opponent
+	if ball.last_hit_team != "opponent":
+		return  # Don't hit our own shots
+	
+	# Partner decision making (skill-based)
+	var partner_skill = 0.75  # Partner skill level
+	var hit_chance = partner_skill * delta * 3  # Chance to hit per frame
+	
+	if randf() < hit_chance:
+		# Partner hits the ball!
+		print("Partner hitting ball!")
+		
+		# Calculate angle toward opponent court
+		var target_x = COURT_WIDTH * (0.25 + randf() * 0.5)  # Random spot on opponent side
+		var target_y = BASELINE_TOP + randf() * (NET_Y - BASELINE_TOP - 20)
+		var target_screen = court_to_screen(target_x, target_y)
+		
+		var dx = target_screen.x - ball.position.x
+		var dy = target_screen.y - ball.position.y
+		var angle = atan2(dy, dx)
+		
+		# Add some randomness
+		angle += (randf() - 0.5) * 0.3
+		
+		# Determine shot type
+		var power = 0.4 + randf() * 0.4
+		var shot_type = "normal"
+		
+		if randf() < 0.2:
+			shot_type = "drop"
+			power = 0.2 + randf() * 0.1
+		elif randf() < 0.1:
+			shot_type = "power"
+			power = 0.7 + randf() * 0.3
+		
+		# Hit the ball
+		ball.velocity = Vector2(cos(angle) * 200, sin(angle) * 200)
+		ball.vertical_velocity = 100 + randf() * 40
+		ball.height = max(ball.height, 10.0)
+		ball.bounces = 0
+		ball.bounces_on_current_side = 0
+		ball.last_hit_team = "player"  # Partner is on player team
+		ball.last_hit_by = partner_node
+		ball.in_flight = true
+		ball.ball_speed = 200
+		
+		game_state.consecutive_hits += 1
+		game_state.rally_count += 1
+		update_ui()
+		
+		# Visual feedback
+		show_message("Partner!", partner_node.position.x, partner_node.position.y - 30, Color(0.2, 0.6, 0.9))
+		
+		# Reset partner can_hit
+		partner_node.set_meta("can_hit", false)
+		partner_node.get_node("Sprite").modulate = Color.WHITE
 
 func handle_kitchen_button_press() -> void:
 	if not player_node:

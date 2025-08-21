@@ -1,4 +1,4 @@
-# UISetup.gd - Attach this to the UI CanvasLayer node
+# UISetup.gd - Fixed with proper button types
 extends CanvasLayer
 
 @onready var main = get_node("/root/Main")
@@ -7,232 +7,204 @@ func _ready() -> void:
 	setup_complete_ui()
 
 func setup_complete_ui() -> void:
-	# Create HUD container
-	var hud = Control.new()
-	hud.name = "HUD"
-	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(hud)
+	# Get existing HUD from scene (it already exists)
+	var hud = get_node_or_null("HUD")
+	if not hud:
+		print("ERROR: HUD node not found in UI!")
+		return
 	
-	# Create Top Panel
-	create_top_panel(hud)
-	
-	# Create Kitchen Button
-	create_kitchen_button(hud)
-	
-	# Create Mastery Button
-	create_mastery_button(hud)
-	
-	# Create Instructions Label
-	create_instructions(hud)
-	
-	# Create Power Indicator
-	create_power_indicator(hud)
-	
-	# Create Debug Info
-	create_debug_info(hud)
+	# Setup components that already exist in scene
+	setup_top_panel()
+	setup_kitchen_button()
+	setup_mastery_button()
+	setup_instructions()
+	setup_power_indicator()
 
-func create_top_panel(parent: Control) -> void:
-	# Container panel
-	var top_panel = Panel.new()
-	top_panel.name = "TopPanel"
-	top_panel.position = Vector2(10, 10)
-	top_panel.size = Vector2(410, 40)
-	top_panel.modulate = Color(0, 0, 0, 0.6)
+func setup_top_panel() -> void:
+	var top_panel = get_node_or_null("HUD/TopPanel")
+	if not top_panel:
+		return
 	
-	# Add StyleBox for rounded corners
+	# Style the existing panel
 	var panel_style = StyleBoxFlat.new()
 	panel_style.set_corner_radius_all(20)
 	panel_style.bg_color = Color(0, 0, 0, 0.6)
 	top_panel.add_theme_stylebox_override("panel", panel_style)
-	parent.add_child(top_panel)
 	
-	# Score Label
-	var score_label = Label.new()
-	score_label.name = "ScoreLabel"
-	score_label.text = "0-0-2"
-	score_label.position = Vector2(15, 10)
-	score_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0))  # Gold
-	score_label.add_theme_font_size_override("font_size", 16)
-	top_panel.add_child(score_label)
+	# Setup existing labels
+	var score_label = get_node_or_null("HUD/TopPanel/ScoreLabel")
+	if score_label:
+		score_label.text = "0-0-2"
+		score_label.position = Vector2(15, 10)
+		score_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0))
+		score_label.add_theme_font_size_override("font_size", 16)
 	
-	# Server Indicator
-	var server_label = Label.new()
-	server_label.name = "ServerIndicator"
-	server_label.text = "You Serve"
-	server_label.position = Vector2(150, 10)
-	score_label.add_theme_color_override("font_color", Color(0.3, 0.69, 0.31))  # Green
-	score_label.add_theme_font_size_override("font_size", 12)
-	top_panel.add_child(server_label)
+	var server_label = get_node_or_null("HUD/TopPanel/ServerIndicator")
+	if server_label:
+		server_label.text = "You Serve"
+		server_label.position = Vector2(150, 10)
+		server_label.add_theme_color_override("font_color", Color(0.3, 0.69, 0.31))
+		server_label.add_theme_font_size_override("font_size", 12)
 	
-	# Rally Counter
-	var rally_label = Label.new()
-	rally_label.name = "RallyCounter"
-	rally_label.text = "R: 0"
-	rally_label.position = Vector2(250, 10)
-	rally_label.add_theme_color_override("font_color", Color(0.67, 0.67, 0.67))
-	rally_label.add_theme_font_size_override("font_size", 11)
-	top_panel.add_child(rally_label)
-	
-	# Kitchen Violations
-	var violations_label = Label.new()
-	violations_label.name = "ViolationsLabel"
-	violations_label.text = "KV: 0"
-	violations_label.position = Vector2(320, 10)
-	violations_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0))  # Orange
-	violations_label.add_theme_font_size_override("font_size", 10)
-	top_panel.add_child(violations_label)
+	var rally_label = get_node_or_null("HUD/TopPanel/RallyCounter")
+	if rally_label:
+		rally_label.text = "R: 0"
+		rally_label.position = Vector2(250, 10)
+		rally_label.add_theme_color_override("font_color", Color(0.67, 0.67, 0.67))
+		rally_label.add_theme_font_size_override("font_size", 11)
 
-func create_kitchen_button(parent: Control) -> void:
-	# Kitchen Button Container
-	var kitchen_button = Button.new()
-	kitchen_button.name = "KitchenButton"
+func setup_kitchen_button() -> void:
+	var kitchen_button = get_node_or_null("HUD/KitchenButton")
+	if not kitchen_button:
+		return
+	
+	# The scene has TextureButton, but we can use it as a button
 	kitchen_button.position = Vector2(345, 750)
 	kitchen_button.size = Vector2(70, 70)
-	kitchen_button.text = "K"
 	
-	# Style for the button
+	# Create a label child for the text since TextureButton doesn't have text property
+	var existing_label = kitchen_button.get_node_or_null("KitchenText")
+	if not existing_label:
+		var kitchen_text = Label.new()
+		kitchen_text.name = "KitchenText"
+		kitchen_text.text = "K"
+		kitchen_text.size = Vector2(70, 50)
+		kitchen_text.position = Vector2(0, 10)
+		kitchen_text.add_theme_font_size_override("font_size", 24)
+		kitchen_text.add_theme_color_override("font_color", Color.WHITE)
+		kitchen_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		kitchen_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		kitchen_button.add_child(kitchen_text)
+	
+	# Style the button
 	var button_style = StyleBoxFlat.new()
 	button_style.set_corner_radius_all(12)
-	button_style.bg_color = Color(0.4, 0.4, 0.4)  # #666666
+	button_style.bg_color = Color(0.4, 0.4, 0.4)
 	button_style.border_color = Color.BLACK
 	button_style.set_border_width_all(3)
 	kitchen_button.add_theme_stylebox_override("normal", button_style)
 	kitchen_button.add_theme_stylebox_override("hover", button_style)
 	kitchen_button.add_theme_stylebox_override("pressed", button_style)
-	kitchen_button.add_theme_font_size_override("font_size", 24)
-	kitchen_button.add_theme_color_override("font_color", Color.WHITE)
-	parent.add_child(kitchen_button)
 	
 	# Kitchen Timer Label
-	var kitchen_timer = Label.new()
-	kitchen_timer.name = "KitchenTimer"
-	kitchen_timer.text = ""
-	kitchen_timer.position = Vector2(0, 50)
-	kitchen_timer.size = Vector2(70, 20)
-	kitchen_timer.add_theme_font_size_override("font_size", 10)
-	kitchen_timer.add_theme_color_override("font_color", Color.WHITE)
-	kitchen_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	kitchen_button.add_child(kitchen_timer)
+	var kitchen_timer = get_node_or_null("HUD/KitchenButton/KitchenTimer")
+	if kitchen_timer:
+		kitchen_timer.text = ""
+		kitchen_timer.position = Vector2(0, 50)
+		kitchen_timer.size = Vector2(70, 20)
+		kitchen_timer.add_theme_font_size_override("font_size", 10)
+		kitchen_timer.add_theme_color_override("font_color", Color.WHITE)
+		kitchen_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
 	# Connect button press
-	kitchen_button.pressed.connect(_on_kitchen_button_pressed)
+	if not kitchen_button.pressed.is_connected(_on_kitchen_button_pressed):
+		kitchen_button.pressed.connect(_on_kitchen_button_pressed)
 
-func create_mastery_button(parent: Control) -> void:
-	# Mastery Button Container
-	var mastery_button = Button.new()
-	mastery_button.name = "MasteryButton"
+func setup_mastery_button() -> void:
+	var mastery_button = get_node_or_null("HUD/MasteryButton")
+	if not mastery_button:
+		return
+	
 	mastery_button.position = Vector2(15, 750)
 	mastery_button.size = Vector2(70, 70)
-	mastery_button.text = "⚡"
+	
+	# Create a label for the icon
+	var existing_label = mastery_button.get_node_or_null("MasteryIcon")
+	if not existing_label:
+		var mastery_icon = Label.new()
+		mastery_icon.name = "MasteryIcon"
+		mastery_icon.text = "⚡"
+		mastery_icon.size = Vector2(70, 35)
+		mastery_icon.position = Vector2(0, 5)
+		mastery_icon.add_theme_font_size_override("font_size", 24)
+		mastery_icon.add_theme_color_override("font_color", Color.WHITE)
+		mastery_icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mastery_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		mastery_button.add_child(mastery_icon)
 	
 	# Circular style
 	var button_style = StyleBoxFlat.new()
-	button_style.set_corner_radius_all(35)  # Half of 70 for circle
-	button_style.bg_color = Color(0.2, 0.2, 0.2)  # #333333
-	button_style.border_color = Color(1.0, 0.84, 0)  # Gold
+	button_style.set_corner_radius_all(35)
+	button_style.bg_color = Color(0.2, 0.2, 0.2)
+	button_style.border_color = Color(1.0, 0.84, 0)
 	button_style.set_border_width_all(3)
 	mastery_button.add_theme_stylebox_override("normal", button_style)
 	mastery_button.add_theme_stylebox_override("hover", button_style)
 	mastery_button.add_theme_stylebox_override("pressed", button_style)
-	mastery_button.add_theme_font_size_override("font_size", 24)
-	mastery_button.add_theme_color_override("font_color", Color.WHITE)
-	parent.add_child(mastery_button)
 	
-	# Fill Bar (Progress Bar)
-	var fill_bar = ProgressBar.new()
-	fill_bar.name = "FillBar"
-	fill_bar.position = Vector2(5, 45)
-	fill_bar.size = Vector2(60, 8)
-	fill_bar.value = 0
-	fill_bar.show_percentage = false
-	
-	# Style the progress bar
-	var fill_style = StyleBoxFlat.new()
-	fill_style.bg_color = Color(0.3, 0.69, 0.31)  # Green when filling
-	fill_bar.add_theme_stylebox_override("fill", fill_style)
-	mastery_button.add_child(fill_bar)
+	# Fill Bar
+	var fill_bar = get_node_or_null("HUD/MasteryButton/FillBar")
+	if fill_bar:
+		fill_bar.position = Vector2(5, 45)
+		fill_bar.size = Vector2(60, 8)
+		fill_bar.value = 0
+		fill_bar.show_percentage = false
+		
+		var fill_style = StyleBoxFlat.new()
+		fill_style.bg_color = Color(0.3, 0.69, 0.31)
+		fill_bar.add_theme_stylebox_override("fill", fill_style)
 	
 	# Percent Label
-	var percent_label = Label.new()
-	percent_label.name = "PercentLabel"
-	percent_label.text = "0%"
-	percent_label.position = Vector2(0, 25)
-	percent_label.size = Vector2(70, 20)
-	percent_label.add_theme_font_size_override("font_size", 14)
-	percent_label.add_theme_color_override("font_color", Color.WHITE)
-	percent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mastery_button.add_child(percent_label)
+	var percent_label = get_node_or_null("HUD/MasteryButton/PercentLabel")
+	if percent_label:
+		percent_label.text = "0%"
+		percent_label.position = Vector2(0, 30)
+		percent_label.size = Vector2(70, 20)
+		percent_label.add_theme_font_size_override("font_size", 14)
+		percent_label.add_theme_color_override("font_color", Color.WHITE)
+		percent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
 	# Connect button press
-	mastery_button.pressed.connect(_on_mastery_button_pressed)
+	if not mastery_button.pressed.is_connected(_on_mastery_button_pressed):
+		mastery_button.pressed.connect(_on_mastery_button_pressed)
 
-func create_instructions(parent: Control) -> void:
-	var instructions = Label.new()
-	instructions.name = "Instructions"
-	instructions.text = "Waiting to start..."
+func setup_instructions() -> void:
+	var instructions = get_node_or_null("HUD/Instructions")
+	if not instructions:
+		return
+	
+	instructions.text = "Swipe up to serve!"
 	instructions.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	instructions.position = Vector2(-100, -80)  # Offset from bottom center
+	instructions.position = Vector2(-100, -80)
 	instructions.size = Vector2(200, 50)
 	instructions.add_theme_font_size_override("font_size", 13)
 	instructions.add_theme_color_override("font_color", Color.WHITE)
 	instructions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	instructions.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	
-	# Background style
 	var bg_style = StyleBoxFlat.new()
 	bg_style.set_corner_radius_all(15)
 	bg_style.bg_color = Color(0, 0, 0, 0.7)
 	instructions.add_theme_stylebox_override("normal", bg_style)
-	parent.add_child(instructions)
 
-func create_power_indicator(parent: Control) -> void:
-	# Power Indicator Container
-	var power_container = Panel.new()
-	power_container.name = "PowerIndicator"
-	power_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	power_container.position = Vector2(-90, -130)  # Offset from bottom center
-	power_container.size = Vector2(180, 20)
-	power_container.visible = false  # Hidden by default
+func setup_power_indicator() -> void:
+	var power_container = get_node_or_null("PowerIndicator")
+	if not power_container:
+		return
 	
-	# Style
+	power_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	power_container.position = Vector2(-90, -130)
+	power_container.size = Vector2(180, 20)
+	power_container.visible = false
+	
 	var container_style = StyleBoxFlat.new()
 	container_style.set_corner_radius_all(12)
 	container_style.bg_color = Color(0, 0, 0, 0.6)
 	container_style.border_color = Color.WHITE
 	container_style.set_border_width_all(2)
 	power_container.add_theme_stylebox_override("panel", container_style)
-	parent.add_child(power_container)
 	
-	# Power Bar
-	var power_bar = ProgressBar.new()
-	power_bar.name = "PowerBar"
-	power_bar.position = Vector2(2, 2)
-	power_bar.size = Vector2(176, 16)
-	power_bar.value = 0
-	power_bar.show_percentage = false
-	
-	# Gradient style for power bar
-	var bar_style = StyleBoxFlat.new()
-	bar_style.set_corner_radius_all(10)
-	bar_style.bg_color = Color(0.3, 0.69, 0.31)  # Will be updated dynamically
-	power_bar.add_theme_stylebox_override("fill", bar_style)
-	power_container.add_child(power_bar)
-
-func create_debug_info(parent: Control) -> void:
-	var debug_label = Label.new()
-	debug_label.name = "DebugInfo"
-	debug_label.text = "S:0 H:0 B:0\nK:OUT E:✓ M:0 V:0\nD:0"
-	debug_label.position = Vector2(350, 50)
-	debug_label.size = Vector2(70, 60)
-	debug_label.add_theme_font_size_override("font_size", 9)
-	debug_label.add_theme_color_override("font_color", Color.WHITE)
-	
-	# Background for visibility
-	var bg_style = StyleBoxFlat.new()
-	bg_style.set_corner_radius_all(4)
-	bg_style.bg_color = Color(0, 0, 0, 0.5)
-	debug_label.add_theme_stylebox_override("normal", bg_style)
-	parent.add_child(debug_label)
+	var power_bar = get_node_or_null("PowerIndicator/PowerBar")
+	if power_bar:
+		power_bar.position = Vector2(2, 2)
+		power_bar.size = Vector2(176, 16)
+		power_bar.value = 0
+		power_bar.show_percentage = false
+		
+		var bar_style = StyleBoxFlat.new()
+		bar_style.set_corner_radius_all(10)
+		bar_style.bg_color = Color(0.3, 0.69, 0.31)
+		power_bar.add_theme_stylebox_override("fill", bar_style)
 
 func _on_kitchen_button_pressed() -> void:
 	print("Kitchen button pressed!")
@@ -241,12 +213,11 @@ func _on_kitchen_button_pressed() -> void:
 
 func _on_mastery_button_pressed() -> void:
 	print("Mastery button pressed!")
-	# This will be connected to the mastery system
-	if main:
-		# Handle mastery activation
-		pass
+	if main and main.has_method("activate_mastery_mode"):
+		if main.game_state.kitchen_pressure >= main.game_state.kitchen_pressure_max:
+			main.activate_mastery_mode()
 
-# Update functions to be called from Main
+# Update functions
 func update_score(player_score: int, opponent_score: int, server_number: int) -> void:
 	var score_label = get_node_or_null("HUD/TopPanel/ScoreLabel")
 	if score_label:
@@ -254,42 +225,58 @@ func update_score(player_score: int, opponent_score: int, server_number: int) ->
 
 func update_kitchen_button(state: String, timer: float = 0.0) -> void:
 	var button = get_node_or_null("HUD/KitchenButton")
+	var text_label = get_node_or_null("HUD/KitchenButton/KitchenText")
 	var timer_label = get_node_or_null("HUD/KitchenButton/KitchenTimer")
 	
 	if not button:
 		return
 	
-	# Update button appearance based on state
-	var button_style = button.get_theme_stylebox("normal") as StyleBoxFlat
+	var button_style = StyleBoxFlat.new()
+	button_style.set_corner_radius_all(12)
+	button_style.border_color = Color.BLACK
+	button_style.set_border_width_all(3)
 	
 	match state:
 		"AVAILABLE":
 			button_style.bg_color = Color(1.0, 0.84, 0)  # Gold
-			button.text = "→K"
-			if timer > 0:
+			if text_label:
+				text_label.text = "→K"
+			if timer_label and timer > 0:
 				timer_label.text = "%.1f" % timer
 		"ACTIVE":
 			button_style.bg_color = Color(0.3, 0.69, 0.31)  # Green
-			button.text = "IN"
-			timer_label.text = ""
+			if text_label:
+				text_label.text = "IN"
+			if timer_label:
+				timer_label.text = ""
 		"MUST_EXIT":
 			button_style.bg_color = Color(1.0, 0.6, 0)  # Orange
-			button.text = "↑!"
-			if timer > 0:
+			if text_label:
+				text_label.text = "↑!"
+			if timer_label and timer > 0:
 				timer_label.text = "%.1f" % timer
 		"WARNING":
 			button_style.bg_color = Color(0.96, 0.26, 0.21)  # Red
-			button.text = "!!"
-			timer_label.text = ""
+			if text_label:
+				text_label.text = "!!"
+			if timer_label:
+				timer_label.text = ""
 		"COOLDOWN":
 			button_style.bg_color = Color(0.6, 0.6, 0.6)  # Gray
-			button.text = "..."
-			if timer > 0:
+			if text_label:
+				text_label.text = "..."
+			if timer_label and timer > 0:
 				timer_label.text = "%.1f" % timer
 		_:  # DISABLED
 			button_style.bg_color = Color(0.4, 0.4, 0.4)  # Dark gray
-			button.text = "K"
-			timer_label.text = ""
+			if text_label:
+				text_label.text = "K"
+			if timer_label:
+				timer_label.text = ""
+	
+	button.add_theme_stylebox_override("normal", button_style)
+	button.add_theme_stylebox_override("hover", button_style)
+	button.add_theme_stylebox_override("pressed", button_style)
 
 func update_mastery_fill(percent: float) -> void:
 	var fill_bar = get_node_or_null("HUD/MasteryButton/FillBar")
@@ -303,18 +290,3 @@ func update_mastery_fill(percent: float) -> void:
 			percent_label.text = "READY!"
 		else:
 			percent_label.text = "%d%%" % int(percent)
-
-func show_power_indicator() -> void:
-	var indicator = get_node_or_null("HUD/PowerIndicator")
-	if indicator:
-		indicator.visible = true
-
-func hide_power_indicator() -> void:
-	var indicator = get_node_or_null("HUD/PowerIndicator")
-	if indicator:
-		indicator.visible = false
-
-func update_power_bar(power: float) -> void:
-	var power_bar = get_node_or_null("HUD/PowerIndicator/PowerBar")
-	if power_bar:
-		power_bar.value = power * 100
