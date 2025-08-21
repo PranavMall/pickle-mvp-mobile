@@ -353,13 +353,13 @@ func update_player_2d_logic(data: Dictionary, ball: Node, ball_court_pos: Vector
 			# Move back to baseline
 			data.target_court_y = min(predicted_y + 30, BASELINE_BOTTOM - 20)
 		elif ball.height > 20 and predicted_y < data.court_y:  # Ball in front and high
-			# Move forward to volley (but not into kitchen unless allowed)
+			# Move forward to volley (but NEVER into kitchen unless button pressed)
 			if not data.in_kitchen:
 				data.target_court_y = max(predicted_y, KITCHEN_LINE_BOTTOM + 10)
 			else:
 				data.target_court_y = predicted_y
 		else:
-			# Normal positioning
+			# Normal positioning - STAY OUT OF KITCHEN
 			data.target_court_y = clamp(predicted_y, KITCHEN_LINE_BOTTOM + 10, BASELINE_BOTTOM - 20)
 		
 		data.target_court_x = predicted_x
@@ -389,14 +389,20 @@ func update_player_2d_logic(data: Dictionary, ball: Node, ball_court_pos: Vector
 		data.court_x = data.target_court_x
 		data.court_y = data.target_court_y
 	
-	# Kitchen tracking
+	# Clamp to valid court positions - ENFORCE KITCHEN BOUNDARY
+	if not is_player or (is_player and game_state.kitchen_state != KitchenState.ACTIVE):
+		# Not allowed in kitchen - stay out
+		data.court_y = max(data.court_y, KITCHEN_LINE_BOTTOM + 5)
+	
+	# Track kitchen status
 	data.in_kitchen = (data.court_y >= NET_Y and data.court_y <= KITCHEN_LINE_BOTTOM)
 	
-	# Handle kitchen state for player
+	# Handle kitchen state for player ONLY
 	if is_player and game_state.kitchen_state == KitchenState.ACTIVE:
 		if game_state.in_kitchen:
-			# Override to stay in kitchen
+			# Player pressed kitchen button - allow in kitchen
 			data.court_y = clamp(data.court_y, NET_Y + 10, KITCHEN_LINE_BOTTOM - 5)
+			data.in_kitchen = true
 
 func should_player_cover_ball(data: Dictionary, ball_court_pos: Vector2) -> bool:
 	# Determine if this player should cover based on court position
@@ -423,27 +429,12 @@ func check_hit_opportunity(character: CharacterBody2D, data: Dictionary, ball: N
 	var time_since_hit = Time.get_ticks_msec() - data.last_hit_time
 	var ball_court_pos = ball.screen_to_court(ball.global_position) if ball.has_method("screen_to_court") else Vector2.ZERO
 	
-	# Debug info
-	if character.name == "Player":
-		print("Player Debug - Distance: ", screen_dist, " Ball height: ", ball.height, 
-			  " Ball Y: ", ball_court_pos.y, " In flight: ", ball.in_flight,
-			  " Time since hit: ", time_since_hit)
-	
-	# More generous hit detection - increased range and conditions
-	var can_hit_now = screen_dist < HIT_DISTANCE * 1.5 and \
-				   ball.height < 60 and \
-				   ball_court_pos.y > NET_Y - 20 and \
+	# More generous hit detection
+	data.can_hit = screen_dist < HIT_DISTANCE and \
+				   ball.height < 50 and \
+				   ball_court_pos.y > NET_Y - 10 and \
 				   ball.in_flight and \
-				   time_since_hit > HIT_COOLDOWN * 500  # Reduced cooldown
-	
-	# Special case for player - even more generous
-	if character.name == "Player" and not can_hit_now:
-		# Allow hitting if very close regardless of other conditions
-		if screen_dist < HIT_DISTANCE and ball.in_flight:
-			can_hit_now = true
-			print("PLAYER OVERRIDE HIT - Very close!")
-	
-	data.can_hit = can_hit_now
+				   time_since_hit > HIT_COOLDOWN * 1000
 	
 	# Update visual feedback
 	if data.can_hit:
@@ -564,7 +555,7 @@ func update_opponents_2d(delta: float) -> void:
 				predicted_x = clamp(predicted_x, 20, COURT_WIDTH - 20)
 				predicted_y = clamp(predicted_y, BASELINE_TOP + 10, NET_Y - 10)
 				
-				# Approach net for volleys
+				# Approach net for volleys BUT NEVER ENTER KITCHEN
 				if ball.height > 30 and predicted_y > opp_data.court_y:
 					opp_data.target_court_y = min(predicted_y, KITCHEN_LINE_TOP - 10)
 				else:
@@ -592,6 +583,9 @@ func update_opponents_2d(delta: float) -> void:
 		else:
 			opp_data.court_x = opp_data.target_court_x
 			opp_data.court_y = opp_data.target_court_y
+		
+		# ENFORCE: Opponents NEVER enter kitchen
+		opp_data.court_y = min(opp_data.court_y, KITCHEN_LINE_TOP - 5)
 		
 		# Check if can hit
 		check_opponent_hit_opportunity(opp_data, ball, ball_court_pos)
