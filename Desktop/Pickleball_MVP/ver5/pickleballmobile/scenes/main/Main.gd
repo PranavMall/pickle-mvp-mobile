@@ -1,4 +1,4 @@
-# Main.gd - Foundation with Day 4 Player System
+# Main.gd - Foundation with Day 4 Player System and Temporary Opponent
 extends Node2D
 
 # Constants from prototype - EXACT VALUES
@@ -86,6 +86,9 @@ var screen_width: float
 var screen_height: float
 var court_scale: float = 1.0
 
+# TEMPORARY OPPONENT FOR TESTING
+var temp_opponent = null
+
 func _ready() -> void:
 	# Get screen dimensions
 	screen_width = get_viewport().size.x
@@ -116,8 +119,101 @@ func _ready() -> void:
 	# Create player for Day 4
 	create_player()
 	
+	# CREATE TEMPORARY OPPONENT FOR TESTING
+	create_temp_opponent()
+	
 	# TEST: Add simple input test directly in Main
 	set_process_input(true)
+
+func create_temp_opponent() -> void:
+	print("Creating temporary opponent for testing...")
+	
+	# Create simple opponent that will hit the ball back
+	temp_opponent = {
+		"x": COURT_WIDTH / 2.0,
+		"y": BASELINE_TOP + SERVICE_LINE_DEPTH,
+		"can_hit": false,
+		"last_hit_time": 0,
+		"court_side": "left"  # Start on left side
+	}
+	
+	print("Temp opponent created at position: ", temp_opponent.x, ", ", temp_opponent.y)
+
+func update_temp_opponent(delta: float) -> void:
+	if not temp_opponent or not game_state.ball_in_play:
+		return
+	
+	var ball = get_node_or_null("Ball")
+	if not ball:
+		return
+	
+	# Get ball court position
+	var ball_court_pos = ball.screen_to_court(ball.global_position)
+	
+	# Only care about ball when it's on opponent's side
+	if ball_court_pos.y < NET_Y:
+		# Move opponent toward ball X position
+		var target_x = ball_court_pos.x
+		var move_speed = 150.0 * delta
+		
+		if abs(temp_opponent.x - target_x) > move_speed:
+			if temp_opponent.x < target_x:
+				temp_opponent.x += move_speed
+			else:
+				temp_opponent.x -= move_speed
+		else:
+			temp_opponent.x = target_x
+		
+		# Keep opponent in bounds
+		temp_opponent.x = clamp(temp_opponent.x, 20, COURT_WIDTH - 20)
+		
+		# Check if opponent can hit
+		var opp_screen_pos = court_to_screen(temp_opponent.x, temp_opponent.y)
+		var dist_to_ball = opp_screen_pos.distance_to(ball.global_position)
+		var time_since_hit = Time.get_ticks_msec() - temp_opponent.last_hit_time
+		
+		temp_opponent.can_hit = dist_to_ball < HIT_DISTANCE and \
+								ball.height < 40 and \
+								ball_court_pos.y < NET_Y and \
+								ball.in_flight and \
+								time_since_hit > HIT_COOLDOWN * 1000 and \
+								ball.bounces > 0  # Wait for ball to bounce (return of serve)
+		
+		# Hit the ball back if possible
+		if temp_opponent.can_hit:
+			print("Opponent hitting ball back!")
+			
+			# Calculate return shot toward player's court
+			var return_target_x = COURT_WIDTH / 2.0 + randf_range(-50, 50)  # Add some variety
+			var return_target_y = BASELINE_BOTTOM - 100  # Aim for mid-court
+			
+			var dx = return_target_x - ball_court_pos.x
+			var dy = return_target_y - ball_court_pos.y
+			var angle = atan2(dy, dx)
+			
+			# Hit the ball back
+			ball.velocity = Vector2(
+				cos(angle) * 200,
+				sin(angle) * 200
+			)
+			ball.vertical_velocity = 100  # Arc for the return
+			ball.height = max(ball.height, 10.0)
+			ball.bounces = 0
+			ball.bounces_on_current_side = 0
+			ball.last_hit_team = "opponent"
+			ball.in_flight = true  # MAKE SURE THIS IS SET!
+			ball.ball_speed = 200  # Set the ball speed
+			
+			temp_opponent.last_hit_time = Time.get_ticks_msec()
+			temp_opponent.can_hit = false
+			
+			show_message("Return!", temp_opponent.x, temp_opponent.y, Color(0.8, 0.2, 0.2))
+			
+			game_state.consecutive_hits += 1
+			game_state.rally_count += 1
+			
+			print("Ball velocity after opponent hit: ", ball.velocity)
+			print("Ball in_flight: ", ball.in_flight)
 
 func _input(event: InputEvent) -> void:
 	# TEST: See if Main is receiving input
@@ -221,11 +317,10 @@ func _on_swipe_completed(angle: float, power: float, shot_type: String) -> void:
 	
 	# Handle regular hit
 	if game_state.ball_in_play:
-		var ball = get_node_or_null("Ball")
-		if ball:
-			# Check if ball is in valid hitting range
-			var ball_court_pos = ball.screen_to_court(ball.global_position)
-			if ball_court_pos.y > NET_Y and ball.height < 40:
+		var player = get_node_or_null("Player")
+		if player and player.can_hit:
+			var ball = get_node_or_null("Ball")
+			if ball:
 				ball.receive_hit(angle, power, shot_type)
 				
 				# Update game state
@@ -314,6 +409,9 @@ func test_perspective_points() -> void:
 func _process(delta: float) -> void:
 	if game_state.game_active:
 		update_game(delta)
+		
+		# UPDATE TEMP OPPONENT
+		update_temp_opponent(delta)
 	
 	# Update messages
 	update_messages(delta)
@@ -324,6 +422,18 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	# Draw court with perspective
 	draw_court()
+	
+	# DRAW TEMP OPPONENT
+	if temp_opponent:
+		var opp_screen_pos = court_to_screen(temp_opponent.x, temp_opponent.y)
+		# Draw red circle for opponent
+		draw_circle(opp_screen_pos, 18, Color(0.8, 0.2, 0.2))
+		# Draw border
+		draw_arc(opp_screen_pos, 18, 0, TAU, 32, Color.BLACK, 2.0)
+		# Draw "O" label
+		var font = ThemeDB.fallback_font
+		draw_string(font, opp_screen_pos + Vector2(-5, 5), "O", 
+					HORIZONTAL_ALIGNMENT_CENTER, -1, 12, Color.WHITE)
 	
 	# Draw messages
 	draw_messages()

@@ -175,24 +175,34 @@ func update_movement(delta: float) -> void:
 	var ball_court_pos = ball.screen_to_court(ball.global_position)
 	var ball_on_our_side = ball_court_pos.y > main.NET_Y
 	
+	print("Ball court pos: ", ball_court_pos, " On our side: ", ball_on_our_side)
+	print("Ball in flight: ", ball.in_flight)
+	print("Player current pos: ", position)
+	
 	# Predictive positioning when ball is on our side
 	if ball_on_our_side and ball.in_flight:
-		var time_to_reach = max(0, (position.y - ball.position.y) / max(ball.velocity.y, 1))
+		var time_to_reach = max(0, (ball.position.y - position.y) / max(ball.velocity.y, 1))
 		var predicted_x = ball.position.x + ball.velocity.x * time_to_reach * 0.3
+		
+		print("Predicted X: ", predicted_x)
 		
 		if should_cover_ball(predicted_x):
 			target_position = calculate_intercept_position(predicted_x, ball.position.y)
+			print("Moving to intercept at: ", target_position)
 	elif not in_kitchen and not is_serving:
 		# Default positioning
 		var default_x = main.COURT_WIDTH * (0.7 if court_side == "right" else 0.3)
 		var default_y = main.BASELINE_BOTTOM - 90
 		var screen_pos = main.court_to_screen(default_x, default_y)
 		target_position = screen_pos
+		print("Moving to default position: ", target_position)
 	
 	# Smooth movement to target
 	var direction = (target_position - position).normalized()
 	velocity = direction * speed
 	move_and_slide()
+	
+	print("Player velocity: ", velocity)
 	
 	# Clamp to court bounds
 	var court_pos = main.get_node("Court").screen_to_court(position) if main.has_node("Court") else Vector2.ZERO
@@ -219,10 +229,11 @@ func should_cover_ball(predicted_x: float) -> bool:
 func calculate_intercept_position(predicted_x: float, ball_y: float) -> Vector2:
 	# Calculate where player should move to intercept
 	var intercept_x = predicted_x
-	var intercept_y = ball_y + 15  # Slightly behind ball
+	var intercept_y = ball_y + 30  # Move closer to where ball will be
 	
-	# Clamp to court bounds
-	intercept_y = max(intercept_y, position.y - 50)  # Don't move back too much
+	# Make sure we stay on our side of the court
+	var max_forward = main.court_to_screen(main.COURT_WIDTH/2, main.KITCHEN_LINE_BOTTOM + 10).y
+	intercept_y = max(intercept_y, max_forward)
 	
 	return Vector2(intercept_x, intercept_y)
 

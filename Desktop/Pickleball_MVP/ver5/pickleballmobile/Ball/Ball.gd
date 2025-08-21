@@ -81,11 +81,6 @@ func _ready() -> void:
 		trail_line.top_level = true  # Make trail independent of ball transform
 		trail_points.clear()  # Clear any existing trail points
 	
-	# Test shot after a short delay - DISABLED for swipe control
-	# await get_tree().create_timer(1.0).timeout
-	# print("Launching test serve...")
-	# test_serve()
-	
 	print("Ball ready - waiting for player swipe!")
 
 func create_ball_textures() -> void:
@@ -128,63 +123,6 @@ func create_ball_textures() -> void:
 		shadow.texture = ImageTexture.create_from_image(shadow_image)
 		shadow.show_behind_parent = true
 		print("Shadow texture created")
-
-func setup_visuals() -> void:
-	# Create ball sprite if not exists
-	if not sprite:
-		sprite = Sprite2D.new()
-		sprite.name = "Sprite"
-		add_child(sprite)
-	
-	# Create ball texture (yellow circle)
-	var ball_image = Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	ball_image.fill(Color(0, 0, 0, 0))  # Transparent background
-	
-	# Draw yellow circle
-	for x in range(16):
-		for y in range(16):
-			var dx = x - 8
-			var dy = y - 8
-			if dx * dx + dy * dy <= 64:  # Within circle radius 8
-				var dist_from_center = sqrt(dx * dx + dy * dy) / 8.0
-				# Gradient from bright yellow to orange at edges
-				var color = Color(1.0, 1.0 - dist_from_center * 0.3, 0.2)
-				ball_image.set_pixel(x, y, color)
-	
-	var ball_texture = ImageTexture.create_from_image(ball_image)
-	sprite.texture = ball_texture
-	
-	# Create shadow sprite
-	if not shadow:
-		shadow = Sprite2D.new()
-		shadow.name = "Shadow"
-		add_child(shadow)
-		move_child(shadow, 0)  # Put shadow behind ball
-	
-	# Create shadow texture (dark ellipse)
-	var shadow_image = Image.create(24, 12, false, Image.FORMAT_RGBA8)
-	shadow_image.fill(Color(0, 0, 0, 0))
-	
-	# Draw elliptical shadow
-	for x in range(24):
-		for y in range(12):
-			var dx = (x - 12) / 12.0
-			var dy = (y - 6) / 6.0
-			if dx * dx + dy * dy <= 1.0:
-				var alpha = (1.0 - (dx * dx + dy * dy)) * 0.5
-				shadow_image.set_pixel(x, y, Color(0, 0, 0, alpha))
-	
-	var shadow_texture = ImageTexture.create_from_image(shadow_image)
-	shadow.texture = shadow_texture
-	
-	# Create trail
-	if not trail_line:
-		trail_line = Line2D.new()
-		trail_line.name = "Trail"
-		trail_line.width = 3.0
-		trail_line.default_color = Color(1.0, 0.84, 0, 0.3)  # Golden trail
-		add_child(trail_line)
-		move_child(trail_line, 0)  # Put trail behind everything
 
 func _physics_process(delta: float) -> void:
 	if not main or not main.game_state.ball_in_play:
@@ -233,9 +171,6 @@ func execute_bounce() -> void:
 	var bounce_side = "player" if court_pos.y > main.NET_Y else "opponent"
 	
 	print("Ball bounced at court position: ", court_pos)
-	print("Court dimensions - Height: ", main.COURT_HEIGHT, " NET_Y: ", main.NET_Y)
-	print("Kitchen lines - Top: ", main.KITCHEN_LINE_TOP, " Bottom: ", main.KITCHEN_LINE_BOTTOM)
-	print("Baselines - Top: ", main.BASELINE_TOP, " Bottom: ", main.BASELINE_BOTTOM)
 	print("Bounce side: ", bounce_side)
 	
 	# Store bounce position
@@ -310,8 +245,7 @@ func update_trail() -> void:
 		var point_pos = trail_points[i]
 		trail_line.add_point(point_pos)
 	
-	# Fade effect (optional - Godot 4 doesn't support per-point alpha well)
-	var alpha = 0.3 * (1.0 - (Time.get_ticks_msec() % 1000) / 1000.0)
+	# Fade effect
 	trail_line.default_color = Color(1.0, 0.84, 0, 0.3)
 	trail_line.width = 3.0
 
@@ -324,7 +258,7 @@ func check_boundaries() -> void:
 		print("Ball position - Screen: ", global_position, " Court: ", court_pos)
 		print("Court bounds at Y=", court_pos.y, " -> Left: ", bounds.left, " Right: ", bounds.right)
 	
-	# Check if out of bounds - using CORRECT baselines
+	# Check if out of bounds
 	var out_of_bounds = false
 	var fault_message = ""
 	
@@ -338,7 +272,7 @@ func check_boundaries() -> void:
 		fault_message = "Out - Wide Right!"
 		print("OUT OF BOUNDS: Ball X (", court_pos.x, ") > Right bound (", bounds.right + 10, ")")
 	
-	# Check end boundaries - USE BASELINES not kitchen lines!
+	# Check end boundaries
 	if court_pos.y < 0 - 10:  # Past top baseline
 		out_of_bounds = true
 		fault_message = "Out - Past opponent baseline!"
@@ -391,7 +325,7 @@ func screen_to_court(screen_pos: Vector2) -> Vector2:
 func receive_serve(angle: float, power: float) -> void:
 	print("Ball receiving serve - Angle: ", angle, " Power: ", power)
 	
-	# Serve needs to go FORWARD (negative Y) and stay within court width
+	# Serve needs to go FORWARD (negative Y) and can go left/right based on angle
 	var base_speed: float = 200.0  # Moderate base speed
 	var arc: float = 120.0  # Good arc for serves
 	
@@ -399,18 +333,14 @@ func receive_serve(angle: float, power: float) -> void:
 	var final_speed = base_speed * (0.6 + power * 0.4)
 	
 	# Force serve to go forward toward opponent's court
-	# Serve angle should be between -45 and -135 degrees (upward)
 	var serve_angle = angle
 	if serve_angle > -PI/4 or serve_angle < -3*PI/4:
 		serve_angle = -PI/2  # Default to straight up if angle is wrong
 	
-	# Calculate velocity with more horizontal component
-	var horizontal_ratio = 0.7  # More horizontal movement
-	var vertical_ratio = 0.3    # Less vertical movement
-	
+	# Calculate velocity properly based on angle
 	velocity = Vector2(
-		0,  # No sideways movement for now (will add aiming later)
-		-final_speed * horizontal_ratio  # Forward toward opponent
+		cos(serve_angle) * final_speed,
+		sin(serve_angle) * final_speed
 	)
 	
 	# Set vertical velocity for arc
@@ -422,6 +352,8 @@ func receive_serve(angle: float, power: float) -> void:
 	in_flight = true
 	ball_speed = final_speed
 	height = max(height, 40.0)
+	last_hit_team = "player"
+	last_hit_by = main.get_node_or_null("Player")
 	
 	# Update game state
 	main.game_state.ball_in_play = true
@@ -472,6 +404,8 @@ func receive_hit(angle: float, power: float, shot_type: String) -> void:
 	in_flight = true
 	ball_speed = final_speed
 	height = max(height, 5.0)  # Ensure ball is slightly off ground
+	last_hit_team = "player"
+	last_hit_by = main.get_node_or_null("Player")
 	
 	# Update game state
 	main.game_state.ball_in_play = true
@@ -496,30 +430,6 @@ func receive_hit(angle: float, power: float, shot_type: String) -> void:
 					  main.COURT_WIDTH/2, main.COURT_HEIGHT - 50, color)
 	
 	print("Ball launched with velocity: ", velocity, " Vertical: ", vertical_velocity)
-
-func test_serve() -> void:
-	# Test serve from bottom center to top
-	var serve_speed = 160.0
-	var serve_angle = -PI/3  # Upward angle
-	
-	# Calculate velocity components
-	var vx = cos(serve_angle) * serve_speed
-	var vy = sin(serve_angle) * serve_speed
-	
-	velocity = Vector2(vx, vy)
-	vertical_velocity = 180.0
-	height = 40.0
-	in_flight = true
-	ball_speed = serve_speed
-	
-	main.game_state.ball_in_play = true
-	
-	# Visual feedback - use court center position
-	main.show_message("Ball Served!", main.COURT_WIDTH/2, main.COURT_HEIGHT - 50, Color.YELLOW)
-	
-	print("Test serve launched from position: ", position)
-	print("Ball velocity: ", velocity)
-	print("Ball vertical velocity: ", vertical_velocity)
 
 func stop_ball() -> void:
 	velocity = Vector2.ZERO
