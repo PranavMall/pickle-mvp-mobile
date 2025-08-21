@@ -144,8 +144,8 @@ func can_swipe() -> bool:
 		print("can_swipe: Missing references")
 		return false
 	
-	# Get player reference
-	var player = main.get_node_or_null("Player")
+	# ALWAYS allow swipe during gameplay for testing
+	# We'll let the hit detection determine if it actually hits
 	
 	# 1. Is it a serve situation?
 	if main.game_state.waiting_for_serve:
@@ -156,13 +156,12 @@ func can_swipe() -> bool:
 			print("can_swipe: Waiting for partner/opponent serve")
 			return false
 	
-	# 2. During rally, check if player can hit
-	if main.game_state.ball_in_play and player:
-		# Check if player has can_hit metadata set
-		var can_hit = player.get_meta("can_hit", false)
-		return can_hit
+	# 2. During rally, ALWAYS allow swipe (hit detection will handle if it connects)
+	if main.game_state.ball_in_play:
+		print("can_swipe: Ball in play - swipe allowed")
+		return true
 	
-	print("can_swipe: No ball in play or no player")
+	print("can_swipe: No ball in play")
 	return false
 
 func determine_shot_type(power: float, angle: float) -> String:

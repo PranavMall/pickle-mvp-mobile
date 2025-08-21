@@ -707,35 +707,64 @@ func _on_swipe_completed(angle: float, power: float, shot_type: String) -> void:
 	if game_state.ball_in_play:
 		var ball = get_node_or_null("Ball")
 		if ball:
-			# Check both player and partner can hit
-			var player_screen_dist = player_node.global_position.distance_to(ball.global_position)
-			var partner_screen_dist = partner_node.global_position.distance_to(ball.global_position)
+			# Check if player or partner can hit
+			print("Checking hit - Player can_hit: ", player_data.can_hit, " Partner can_hit: ", partner_data.can_hit)
 			
-			print("Player distance to ball: ", player_screen_dist)
-			print("Partner distance to ball: ", partner_screen_dist)
-			print("Player can_hit: ", player_data.can_hit)
-			print("Partner can_hit: ", partner_data.can_hit)
-			
-			if player_data.can_hit or player_screen_dist < HIT_DISTANCE:
+			# Priority 1: Check if player can hit
+			if player_data.can_hit:
+				print("PLAYER HITTING BALL!")
 				ball.receive_hit(angle, power, shot_type)
 				player_data.last_hit_time = Time.get_ticks_msec()
-				player_data.can_hit = false  # Reset immediately
+				player_data.can_hit = false
+				game_state.consecutive_hits += 1
 				game_state.rally_count += 1
 				update_kitchen_pressure(3)
 				update_ui()
-				print("PLAYER HIT THE BALL!")
 				show_message("Hit!", player_data.court_x, player_data.court_y - 20, Color(0.2, 0.8, 0.2))
-			elif partner_data.can_hit or partner_screen_dist < HIT_DISTANCE:
+				return
+			
+			# Priority 2: Check if partner can hit
+			if partner_data.can_hit:
+				print("PARTNER HITTING BALL!")
 				ball.receive_hit(angle, power, shot_type)
 				partner_data.last_hit_time = Time.get_ticks_msec()
-				partner_data.can_hit = false  # Reset immediately
+				partner_data.can_hit = false
+				game_state.consecutive_hits += 1
 				game_state.rally_count += 1
 				update_ui()
-				print("PARTNER HIT THE BALL!")
 				show_message("Partner!", partner_data.court_x, partner_data.court_y - 20, Color(0.2, 0.6, 0.9))
-			else:
-				print("TOO FAR FROM BALL! Player: ", player_screen_dist, " Partner: ", partner_screen_dist)
-				show_message("Miss!", ball.global_position.x, ball.global_position.y - 30, Color(1, 0, 0))
+				return
+			
+			# Priority 3: Emergency fallback - check raw distance
+			var player_dist = player_node.global_position.distance_to(ball.global_position)
+			var partner_dist = partner_node.global_position.distance_to(ball.global_position)
+			
+			print("Fallback check - Player dist: ", player_dist, " Partner dist: ", partner_dist)
+			
+			if player_dist < HIT_DISTANCE:
+				print("FALLBACK: Player hitting (close enough)!")
+				ball.receive_hit(angle, power, shot_type)
+				player_data.last_hit_time = Time.get_ticks_msec()
+				game_state.consecutive_hits += 1
+				game_state.rally_count += 1
+				update_kitchen_pressure(3)
+				update_ui()
+				show_message("Hit!", player_data.court_x, player_data.court_y - 20, Color(0.2, 0.8, 0.2))
+				return
+			elif partner_dist < HIT_DISTANCE:
+				print("FALLBACK: Partner hitting (close enough)!")
+				ball.receive_hit(angle, power, shot_type)
+				partner_data.last_hit_time = Time.get_ticks_msec()
+				game_state.consecutive_hits += 1
+				game_state.rally_count += 1
+				update_ui()
+				show_message("Partner!", partner_data.court_x, partner_data.court_y - 20, Color(0.2, 0.6, 0.9))
+				return
+			
+			print("MISS! Too far - Player: ", player_dist, " Partner: ", partner_dist)
+			show_message("Miss!", ball.global_position.x, ball.global_position.y - 30, Color(1, 0, 0))
+	else:
+		print("Ball not in play!")
 
 func player_serve_with_swipe(angle: float, power: float) -> void:
 	print("Player serving with swipe!")
