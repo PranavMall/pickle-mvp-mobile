@@ -113,6 +113,9 @@ func _ready() -> void:
 	# Create swipe detector for Day 3
 	create_swipe_detector()
 	
+	# Create player for Day 4
+	create_player()
+	
 	# TEST: Add simple input test directly in Main
 	set_process_input(true)
 
@@ -222,6 +225,47 @@ func player_serve_with_swipe(angle: float, power: float) -> void:
 	game_state.game_active = true
 	game_state.rally_count = 0
 
+func create_player() -> void:
+	# Create player character
+	var player = CharacterBody2D.new()
+	player.name = "Player"
+	player.z_index = 50  # Above court, below ball
+	add_child(player)
+	
+	# Attach player script
+	var player_script = load("res://Players/Player.gd")
+	if player_script:
+		player.set_script(player_script)
+		
+		# Connect player signals
+		player.entered_kitchen.connect(_on_player_entered_kitchen)
+		player.exited_kitchen.connect(_on_player_exited_kitchen)
+		player.ready_to_hit.connect(_on_player_ready_to_hit)
+		
+		print("Player created and connected")
+	else:
+		print("ERROR: Player.gd not found!")
+
+func _on_player_entered_kitchen() -> void:
+	print("Player entered kitchen")
+	update_kitchen_pressure(5)
+
+func _on_player_exited_kitchen() -> void:
+	print("Player exited kitchen")
+
+func _on_player_ready_to_hit() -> void:
+	# Visual feedback when player can hit
+	var instructions = get_node_or_null("UI/HUD/Instructions")
+	if instructions and game_state.ball_in_play:
+		instructions.text = "Swipe to hit!"
+
+func update_kitchen_pressure(amount: float) -> void:
+	game_state.kitchen_pressure = clamp(
+		game_state.kitchen_pressure + amount,
+		0,
+		game_state.kitchen_pressure_max
+	)
+
 func update_ui() -> void:
 	# Update score display
 	var score_label = get_node_or_null("UI/HUD/TopPanel/ScoreLabel")
@@ -230,6 +274,9 @@ func update_ui() -> void:
 	
 	# Update other UI elements through UISetup
 	var ui = get_node_or_null("UI")
+	if ui and ui.has_method("update_mastery_fill"):
+		var percent = (game_state.kitchen_pressure / game_state.kitchen_pressure_max) * 100
+		ui.update_mastery_fill(percent)
 	if ui and ui.has_method("update_score"):
 		ui.update_score(game_state.player_score, game_state.opponent_score, game_state.server_number)
 

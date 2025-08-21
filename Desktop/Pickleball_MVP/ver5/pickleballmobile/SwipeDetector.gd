@@ -140,14 +140,15 @@ func cancel_swipe() -> void:
 	print("Swipe cancelled")
 
 func can_swipe() -> bool:
-	# Check if we have references
 	if not main or not ball:
 		print("can_swipe: Missing references")
 		return false
 	
+	# Get player reference
+	var player = main.get_node_or_null("Player")
+	
 	# 1. Is it a serve situation?
 	if main.game_state.waiting_for_serve:
-		# Only allow swipe if player is serving
 		if main.game_state.can_serve:
 			print("can_swipe: Player can serve")
 			return true
@@ -156,26 +157,12 @@ func can_swipe() -> bool:
 			return false
 	
 	# 2. During rally, check if player can hit
-	if main.game_state.ball_in_play:
-		var ball_court_pos = ball.screen_to_court(ball.global_position)
-		var ball_on_our_side = ball_court_pos.y > main.NET_Y
-		var ball_height_ok = ball.height < 60  # More generous height
-		
-		# Simple distance check for now (will use player position later)
-		var screen_center = Vector2(get_viewport().size.x / 2, get_viewport().size.y * 0.75)
-		var dist_to_ball = ball.global_position.distance_to(screen_center)
-		var ball_in_range = dist_to_ball < main.HIT_DISTANCE * 3  # Very generous for testing
-		
-		print("can_swipe: Ball on our side: ", ball_on_our_side, 
-			  " Height OK: ", ball_height_ok, 
-			  " In range: ", ball_in_range, 
-			  " Distance: ", dist_to_ball)
-		
-		return ball_on_our_side and ball_height_ok and ball_in_range
+	if main.game_state.ball_in_play and player:
+		return player.can_hit
 	
-	print("can_swipe: No ball in play")
+	print("can_swipe: No ball in play or no player")
 	return false
-
+	
 func determine_shot_type(power: float, angle: float) -> String:
 	# Check if player is near kitchen (will use actual player position later)
 	# For now, approximate based on where swipe started

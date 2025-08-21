@@ -238,8 +238,17 @@ func _on_kitchen_button_pressed() -> void:
 	print("Kitchen button pressed!")
 	# This will be connected to the kitchen system
 	if main:
-		# Handle kitchen button logic
-		pass
+		var player = main.get_node_or_null("Player")
+		if not player:
+			return
+			
+		match main.game_state.kitchen_state:
+			main.KitchenState.AVAILABLE:
+				player.enter_kitchen()
+				update_kitchen_button("ACTIVE")
+			main.KitchenState.ACTIVE, main.KitchenState.MUST_EXIT, main.KitchenState.WARNING:
+				player.exit_kitchen()
+				update_kitchen_button("DISABLED")
 
 func _on_mastery_button_pressed() -> void:
 	print("Mastery button pressed!")
@@ -247,7 +256,6 @@ func _on_mastery_button_pressed() -> void:
 	if main:
 		# Handle mastery activation
 		pass
-
 # Update functions to be called from Main
 func update_score(player_score: int, opponent_score: int, server_number: int) -> void:
 	var score_label = get_node_or_null("HUD/TopPanel/ScoreLabel")
