@@ -375,6 +375,29 @@ func update_player_2d_logic(data: Dictionary, ball: Node, ball_court_pos: Vector
 		data.target_court_x = data.default_x
 		data.target_court_y = data.default_y
 	
+	# COLLISION AVOIDANCE
+	if is_player:
+		var partner_dist = sqrt(pow(data.court_x - partner_data.court_x, 2) + 
+							   pow(data.court_y - partner_data.court_y, 2))
+		if partner_dist < MIN_PLAYER_DISTANCE:
+			# Push away from partner
+			var push_dir_x = data.court_x - partner_data.court_x
+			var push_dir_y = data.court_y - partner_data.court_y
+			var push_dist = sqrt(push_dir_x*push_dir_x + push_dir_y*push_dir_y)
+			if push_dist > 0:
+				data.court_x += (push_dir_x / push_dist) * (MIN_PLAYER_DISTANCE - partner_dist) * 0.5
+				data.court_y += (push_dir_y / push_dist) * (MIN_PLAYER_DISTANCE - partner_dist) * 0.5
+	else:  # Partner avoidance
+		var player_dist = sqrt(pow(data.court_x - player_data.court_x, 2) + 
+							  pow(data.court_y - player_data.court_y, 2))
+		if player_dist < MIN_PLAYER_DISTANCE:
+			var push_dir_x = data.court_x - player_data.court_x
+			var push_dir_y = data.court_y - player_data.court_y
+			var push_dist = sqrt(push_dir_x*push_dir_x + push_dir_y*push_dir_y)
+			if push_dist > 0:
+				data.court_x += (push_dir_x / push_dist) * (MIN_PLAYER_DISTANCE - player_dist) * 0.5
+				data.court_y += (push_dir_y / push_dist) * (MIN_PLAYER_DISTANCE - player_dist) * 0.5
+	
 	# SMOOTH MOVEMENT IN 2D
 	var dx = data.target_court_x - data.court_x
 	var dy = data.target_court_y - data.court_y
@@ -425,16 +448,17 @@ func check_hit_opportunity(character: CharacterBody2D, data: Dictionary, ball: N
 	
 	# Calculate distance in SCREEN coordinates (what the player sees)
 	var screen_dist = ball_screen_pos.distance_to(player_screen_pos)
-	
 	var time_since_hit = Time.get_ticks_msec() - data.last_hit_time
 	var ball_court_pos = ball.screen_to_court(ball.global_position) if ball.has_method("screen_to_court") else Vector2.ZERO
 	
 	# More generous hit detection
 	data.can_hit = screen_dist < HIT_DISTANCE and \
-				   ball.height < 50 and \
+				   ball.height < 40 and \
+				   ball.height > 0 and \
 				   ball_court_pos.y > NET_Y - 10 and \
 				   ball.in_flight and \
-				   time_since_hit > HIT_COOLDOWN * 1000
+				   time_since_hit > HIT_COOLDOWN * 1000 and \
+				   ball.last_hit_team == "opponent"  # MUST be opponent's hit
 	
 	# Update visual feedback
 	if data.can_hit:
@@ -728,37 +752,6 @@ func _on_swipe_completed(angle: float, power: float, shot_type: String) -> void:
 				update_ui()
 				show_message("Partner!", partner_data.court_x, partner_data.court_y - 20, Color(0.2, 0.6, 0.9))
 				return
-			
-			# Priority 3: Emergency fallback - check raw distance
-			var player_dist = player_node.global_position.distance_to(ball.global_position)
-			var partner_dist = partner_node.global_position.distance_to(ball.global_position)
-			
-			print("Fallback check - Player dist: ", player_dist, " Partner dist: ", partner_dist)
-			
-			if player_dist < HIT_DISTANCE:
-				print("FALLBACK: Player hitting (close enough)!")
-				ball.receive_hit(angle, power, shot_type)
-				player_data.last_hit_time = Time.get_ticks_msec()
-				game_state.consecutive_hits += 1
-				game_state.rally_count += 1
-				update_kitchen_pressure(3)
-				update_ui()
-				show_message("Hit!", player_data.court_x, player_data.court_y - 20, Color(0.2, 0.8, 0.2))
-				return
-			elif partner_dist < HIT_DISTANCE:
-				print("FALLBACK: Partner hitting (close enough)!")
-				ball.receive_hit(angle, power, shot_type)
-				partner_data.last_hit_time = Time.get_ticks_msec()
-				game_state.consecutive_hits += 1
-				game_state.rally_count += 1
-				update_ui()
-				show_message("Partner!", partner_data.court_x, partner_data.court_y - 20, Color(0.2, 0.6, 0.9))
-				return
-			
-			print("MISS! Too far - Player: ", player_dist, " Partner: ", partner_dist)
-			show_message("Miss!", ball.global_position.x, ball.global_position.y - 30, Color(1, 0, 0))
-	else:
-		print("Ball not in play!")
 
 func player_serve_with_swipe(angle: float, power: float) -> void:
 	print("Player serving with swipe!")
