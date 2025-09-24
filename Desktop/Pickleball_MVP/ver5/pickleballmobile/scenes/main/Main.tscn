@@ -1,0 +1,122 @@
+[gd_scene load_steps=6 format=3 uid="uid://byl65os48dqts"]
+
+[ext_resource type="Script" uid="uid://bwy0hr6tmfm0k" path="res://scenes/main/Main.gd" id="1_u1xfj"]
+[ext_resource type="Script" uid="uid://cdjp4nco1o7et" path="res://courts/Court.gd" id="2_nha0i"]
+[ext_resource type="Script" uid="uid://45r6iydgsqop" path="res://Ball/Ball.gd" id="3_gyg6b"]
+[ext_resource type="Script" uid="uid://bfa4khpy4xblw" path="res://UI/UISetup.gd" id="3_q24mn"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_dc040"]
+radius = 8.0
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_u1xfj")
+
+[node name="Court" type="Node2D" parent="."]
+script = ExtResource("2_nha0i")
+
+[node name="KitchenTopArea" type="Area2D" parent="Court"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Court/KitchenTopArea"]
+
+[node name="KitchenBottomArea" type="Area2D" parent="Court"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Court/KitchenBottomArea"]
+
+[node name="ServiceBoxes" type="Node2D" parent="Court"]
+
+[node name="TopLeft" type="Area2D" parent="Court/ServiceBoxes"]
+
+[node name="TopRight" type="Area2D" parent="Court/ServiceBoxes"]
+
+[node name="BottomLeft" type="Area2D" parent="Court/ServiceBoxes"]
+
+[node name="BottomRight" type="Area2D" parent="Court/ServiceBoxes"]
+
+[node name="Ball" type="CharacterBody2D" parent="."]
+position = Vector2(211, 700)
+script = ExtResource("3_gyg6b")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ball"]
+shape = SubResource("CircleShape2D_dc040")
+
+[node name="Sprite" type="Sprite2D" parent="Ball"]
+
+[node name="Shadow" type="Sprite2D" parent="Ball"]
+modulate = Color(1, 1, 1, 0.00392157)
+show_behind_parent = true
+
+[node name="Trail" type="Line2D" parent="Ball"]
+width = 3.0
+default_color = Color(1, 0.843137, 0, 0)
+
+[node name="UI" type="CanvasLayer" parent="."]
+script = ExtResource("3_q24mn")
+
+[node name="HUD" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="TopPanel" type="Panel" parent="UI/HUD"]
+layout_mode = 0
+offset_right = 410.0
+offset_bottom = 40.0
+
+[node name="ScoreLabel" type="Label" parent="UI/HUD/TopPanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="ServerIndicator" type="Label" parent="UI/HUD/TopPanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="RallyCounter" type="Label" parent="UI/HUD/TopPanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="KitchenButton" type="TextureButton" parent="UI/HUD"]
+layout_mode = 0
+offset_right = 70.0
+offset_bottom = 70.0
+
+[node name="KitchenTimer" type="Label" parent="UI/HUD/KitchenButton"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="MasteryButton" type="TextureButton" parent="UI/HUD"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="FillBar" type="ProgressBar" parent="UI/HUD/MasteryButton"]
+layout_mode = 0
+offset_left = -1.0
+offset_top = -1.0
+offset_right = 3.0
+offset_bottom = 26.0
+
+[node name="PercentLabel" type="Label" parent="UI/HUD/MasteryButton"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="Instructions" type="Label" parent="UI/HUD"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="PowerIndicator" type="Panel" parent="UI"]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="PowerBar" type="ProgressBar" parent="UI/PowerIndicator"]
+layout_mode = 0
+offset_right = 4.0
+offset_bottom = 27.0
+
+[node name="GameManager" type="Node" parent="."]
