@@ -1,9 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://byl65os48dqts"]
+[gd_scene load_steps=8 format=3 uid="uid://byl65os48dqts"]
 
 [ext_resource type="Script" uid="uid://bwy0hr6tmfm0k" path="res://scenes/main/Main.gd" id="1_u1xfj"]
 [ext_resource type="Script" uid="uid://cdjp4nco1o7et" path="res://courts/Court.gd" id="2_nha0i"]
 [ext_resource type="Script" uid="uid://45r6iydgsqop" path="res://Ball/Ball.gd" id="3_gyg6b"]
 [ext_resource type="Script" uid="uid://bfa4khpy4xblw" path="res://UI/UISetup.gd" id="3_q24mn"]
+[ext_resource type="Script" uid="uid://dei25affa53a5" path="res://scripts/systems/KitchenButton.gd" id="5_1rhdn"]
+[ext_resource type="Script" uid="uid://b5uqmpcfxwrre" path="res://scripts/systems/MasteryButton.gd" id="6_sjxhf"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_dc040"]
 radius = 8.0
@@ -78,20 +80,23 @@ layout_mode = 0
 offset_right = 40.0
 offset_bottom = 23.0
 
-[node name="KitchenButton" type="TextureButton" parent="UI/HUD"]
+[node name="KitchenButton" type="Button" parent="UI/HUD"]
 layout_mode = 0
-offset_right = 70.0
-offset_bottom = 70.0
+offset_right = 80.0
+offset_bottom = 80.0
+script = ExtResource("5_1rhdn")
 
 [node name="KitchenTimer" type="Label" parent="UI/HUD/KitchenButton"]
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 23.0
 
-[node name="MasteryButton" type="TextureButton" parent="UI/HUD"]
+[node name="MasteryButton" type="Button" parent="UI/HUD"]
+custom_minimum_size = Vector2(70, 70)
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
+script = ExtResource("6_sjxhf")
 
 [node name="FillBar" type="ProgressBar" parent="UI/HUD/MasteryButton"]
 layout_mode = 0

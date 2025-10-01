@@ -192,30 +192,6 @@ func _ready() -> void:
 	print("=== DAY 5 KITCHEN SYSTEM READY ===")
 
 # NEW: Create and setup KitchenSystem
-func create_kitchen_system() -> void:
-	var kitchen_script = load("res://scripts/systems/KitchenSystem.gd")
-	if not kitchen_script:
-		print("ERROR: Cannot load KitchenSystem.gd")
-		return
-	
-	kitchen_system = Node.new()
-	kitchen_system.name = "KitchenSystem"
-	kitchen_system.set_script(kitchen_script)
-	add_child(kitchen_system)
-	
-	# Set references
-	kitchen_system.main_node = self
-	kitchen_system.player_data = player_data
-	
-	# Connect signals
-	kitchen_system.kitchen_opportunity.connect(_on_kitchen_opportunity)
-	kitchen_system.kitchen_entered.connect(_on_kitchen_entered)
-	kitchen_system.kitchen_exited.connect(_on_kitchen_exited)
-	kitchen_system.kitchen_violation.connect(_on_kitchen_violation)
-	kitchen_system.pressure_changed.connect(_on_pressure_changed)
-	kitchen_system.state_changed.connect(_on_kitchen_state_changed)
-	
-	print("KitchenSystem created and connected!")
 
 # NEW: Signal handlers for KitchenSystem
 func _on_kitchen_opportunity() -> void:
@@ -239,23 +215,6 @@ func _on_kitchen_state_changed(new_state: int) -> void:
 	game_state.kitchen_state = new_state
 	update_ui()
 
-# MODIFIED: Handle kitchen button now uses KitchenSystem
-func handle_kitchen_button_press() -> void:
-	if not kitchen_system:
-		print("ERROR: KitchenSystem not initialized!")
-		return
-	
-	match kitchen_system.current_state:
-		0:  # DISABLED
-			print("Kitchen not available")
-		
-		1:  # AVAILABLE
-			if kitchen_system.enter_kitchen():
-				# System handles player movement through player_data
-				pass
-		
-		2, 3, 4:  # ACTIVE, MUST_EXIT, WARNING
-			kitchen_system.exit_kitchen()
 
 # NEW: Flash kitchen zone for violations
 func flash_kitchen_zone(is_player_side: bool) -> void:
@@ -959,13 +918,7 @@ func update_ui() -> void:
 	var score_label = get_node_or_null("UI/HUD/TopPanel/ScoreLabel")
 	if score_label:
 		score_label.text = "%d-%d-%d" % [game_state.player_score, game_state.opponent_score, game_state.server_number]
-	
-	var ui = get_node_or_null("UI")
-	if ui and ui.has_method("update_mastery_fill"):
-		var percent = 0
-		if kitchen_system:
-			percent = kitchen_system.get_pressure_percent()
-		ui.update_mastery_fill(percent)
+	# Buttons update themselves via signals - don't manually update them!
 
 func get_visual_court_bounds(y: float) -> Dictionary:
 	var perspective_factor = 1.0 - (1.0 - PERSPECTIVE_SCALE) * (1.0 - y / COURT_HEIGHT)
@@ -1013,6 +966,48 @@ func draw_court() -> void:
 	draw_kitchen_zones(center_x, court_top)
 	draw_court_lines(center_x, court_top)
 	draw_net(center_x, court_top)
+	
+func create_kitchen_system() -> void:
+	var kitchen_script = load("res://scripts/systems/KitchenSystem.gd")
+	if not kitchen_script:
+			print("ERROR: Cannot load KitchenSystem.gd")
+			return
+	
+	kitchen_system = Node.new()
+	kitchen_system.name = "KitchenSystem"
+	kitchen_system.set_script(kitchen_script)
+	add_child(kitchen_system)
+	kitchen_system.main_node = self
+	kitchen_system.player_data = player_data
+	
+	# Connect signals
+	kitchen_system.kitchen_opportunity.connect(_on_kitchen_opportunity)
+	kitchen_system.kitchen_entered.connect(_on_kitchen_entered)
+	kitchen_system.kitchen_exited.connect(_on_kitchen_exited)
+	kitchen_system.kitchen_violation.connect(_on_kitchen_violation)
+	kitchen_system.pressure_changed.connect(_on_pressure_changed)
+	kitchen_system.state_changed.connect(_on_kitchen_state_changed)
+	
+	print("KitchenSystem created!")
+	
+	# NEW: Connect UI buttons to KitchenSystem
+	await get_tree().process_frame  # Wait for UI to be ready
+	
+	var kitchen_button = get_node_or_null("UI/HUD/KitchenButton")
+	if kitchen_button and kitchen_button.has_method("set_kitchen_system"):
+		kitchen_button.set_kitchen_system(kitchen_system)
+		kitchen_button.main_node = self
+		print("Kitchen button connected!")
+	else:
+		print("WARNING: Kitchen button not found or missing method!")
+	
+	var mastery_button = get_node_or_null("UI/HUD/MasteryButton")
+	if mastery_button and mastery_button.has_method("set_kitchen_system"):
+		mastery_button.set_kitchen_system(kitchen_system)
+		mastery_button.main_node = self
+		print("Mastery button connected!")
+	else:
+		print("WARNING: Mastery button not found or missing method!")
 
 func draw_kitchen_zones(center_x: float, court_top: float) -> void:
 	var kitchen_color = get_kitchen_zone_color()
