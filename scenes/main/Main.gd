@@ -1,4 +1,4 @@
-# Main.gd - Complete Day 4 Implementation with PROPER 2D Movement
+# Main.gd - Day 5 Integration with KitchenSystem
 extends Node2D
 
 # Constants from prototype - EXACT VALUES
@@ -19,14 +19,14 @@ const SERVICE_LINE_DEPTH: float = 90.0
 
 # Player constants
 const PLAYER_SPEED: float = 180.0
-const PARTNER_SPEED: float = 170.0  # Slightly slower than player
+const PARTNER_SPEED: float = 170.0
 const BALL_RADIUS: float = 8.0
 const GRAVITY: float = 160.0
-const HIT_DISTANCE: float = 80.0  # Increased from 60 for easier hitting
-const HIT_COOLDOWN: float = 0.4  # Reduced from 0.8 for faster hits
-const MIN_PLAYER_DISTANCE: float = 80.0  # Minimum distance between player and partner
+const HIT_DISTANCE: float = 80.0
+const HIT_COOLDOWN: float = 0.4
+const MIN_PLAYER_DISTANCE: float = 80.0
 
-# Kitchen State Machine
+# Kitchen State Machine (kept for compatibility, but use KitchenSystem)
 enum KitchenState {
 	DISABLED,
 	AVAILABLE,
@@ -46,7 +46,7 @@ var game_state: Dictionary = {
 	"consecutive_hits": 0,
 	"rally_length": 0,
 	
-	# Kitchen states
+	# Kitchen states - NOW MANAGED BY KitchenSystem
 	"kitchen_state": KitchenState.DISABLED,
 	"kitchen_state_timer": 0.0,
 	"in_kitchen": false,
@@ -55,7 +55,7 @@ var game_state: Dictionary = {
 	"kitchen_violations": {"player": 0, "opponent": 0},
 	"kitchen_flash": null,
 	
-	# Pressure system
+	# Pressure system - NOW MANAGED BY KitchenSystem
 	"kitchen_pressure": 0.0,
 	"kitchen_pressure_max": 100.0,
 	"kitchen_mastery": false,
@@ -92,9 +92,9 @@ var court_scale: float = 1.0
 var player_node = null
 var partner_node = null
 
-# Player movement data - CRITICAL FOR 2D MOVEMENT
+# Player movement data
 var player_data = {
-	"court_x": COURT_WIDTH * 0.75,  # Court position (not screen)
+	"court_x": COURT_WIDTH * 0.75,
 	"court_y": BASELINE_BOTTOM - SERVICE_LINE_DEPTH,
 	"target_court_x": 0.0,
 	"target_court_y": 0.0,
@@ -103,7 +103,13 @@ var player_data = {
 	"can_hit": false,
 	"last_hit_time": 0,
 	"default_x": COURT_WIDTH * 0.75,
-	"default_y": BASELINE_BOTTOM - SERVICE_LINE_DEPTH
+	"default_y": BASELINE_BOTTOM - SERVICE_LINE_DEPTH,
+	# NEW: Kitchen violation tracking
+	"was_in_kitchen": false,
+	"feet_established": true,
+	"momentum_timer": 0.0,
+	"volley_position": Vector2.ZERO,
+	"establishment_timer": 0.0
 }
 
 var partner_data = {
@@ -116,10 +122,15 @@ var partner_data = {
 	"can_hit": false,
 	"last_hit_time": 0,
 	"default_x": COURT_WIDTH * 0.25,
-	"default_y": BASELINE_BOTTOM - SERVICE_LINE_DEPTH
+	"default_y": BASELINE_BOTTOM - SERVICE_LINE_DEPTH,
+	"was_in_kitchen": false,
+	"feet_established": true,
+	"momentum_timer": 0.0,
+	"volley_position": Vector2.ZERO,
+	"establishment_timer": 0.0
 }
 
-# TEMPORARY OPPONENT FOR TESTING
+# Opponent data
 var opponent1_data = {
 	"court_x": COURT_WIDTH * 0.75,
 	"court_y": BASELINE_TOP + SERVICE_LINE_DEPTH,
@@ -130,7 +141,11 @@ var opponent1_data = {
 	"can_hit": false,
 	"last_hit_time": 0,
 	"default_x": COURT_WIDTH * 0.75,
-	"default_y": BASELINE_TOP + SERVICE_LINE_DEPTH
+	"default_y": BASELINE_TOP + SERVICE_LINE_DEPTH,
+	"was_in_kitchen": false,
+	"feet_established": true,
+	"momentum_timer": 0.0,
+	"volley_position": Vector2.ZERO
 }
 
 var opponent2_data = {
@@ -143,21 +158,29 @@ var opponent2_data = {
 	"can_hit": false,
 	"last_hit_time": 0,
 	"default_x": COURT_WIDTH * 0.25,
-	"default_y": BASELINE_TOP + SERVICE_LINE_DEPTH
+	"default_y": BASELINE_TOP + SERVICE_LINE_DEPTH,
+	"was_in_kitchen": false,
+	"feet_established": true,
+	"momentum_timer": 0.0,
+	"volley_position": Vector2.ZERO
 }
 
+# NEW: Kitchen System reference
+var kitchen_system: Node = null
+
 func _ready() -> void:
-	# Get screen dimensions
 	screen_width = get_viewport().size.x
 	screen_height = get_viewport().size.y
 	
-	print("=== STARTING DAY 4 WITH 2D MOVEMENT ===")
+	print("=== STARTING DAY 5 WITH KITCHEN SYSTEM ===")
 	
-	# Calculate court scale to fit screen
 	court_scale = min(screen_width / COURT_WIDTH, screen_height / (COURT_HEIGHT + COURT_OFFSET_Y * 2))
 	
 	# Initialize game
 	init_game()
+	
+	# Create KitchenSystem FIRST
+	create_kitchen_system()
 	
 	# Create swipe detector
 	create_swipe_detector()
@@ -166,18 +189,90 @@ func _ready() -> void:
 	await get_tree().process_frame
 	create_player_team()
 	
-	print("=== 2D MOVEMENT SYSTEM READY ===")
+	print("=== DAY 5 KITCHEN SYSTEM READY ===")
+
+# NEW: Create and setup KitchenSystem
+func create_kitchen_system() -> void:
+	var kitchen_script = load("res://scripts/systems/KitchenSystem.gd")
+	if not kitchen_script:
+		print("ERROR: Cannot load KitchenSystem.gd")
+		return
+	
+	kitchen_system = Node.new()
+	kitchen_system.name = "KitchenSystem"
+	kitchen_system.set_script(kitchen_script)
+	add_child(kitchen_system)
+	
+	# Set references
+	kitchen_system.main_node = self
+	kitchen_system.player_data = player_data
+	
+	# Connect signals
+	kitchen_system.kitchen_opportunity.connect(_on_kitchen_opportunity)
+	kitchen_system.kitchen_entered.connect(_on_kitchen_entered)
+	kitchen_system.kitchen_exited.connect(_on_kitchen_exited)
+	kitchen_system.kitchen_violation.connect(_on_kitchen_violation)
+	kitchen_system.pressure_changed.connect(_on_pressure_changed)
+	kitchen_system.state_changed.connect(_on_kitchen_state_changed)
+	
+	print("KitchenSystem created and connected!")
+
+# NEW: Signal handlers for KitchenSystem
+func _on_kitchen_opportunity() -> void:
+	show_message("Kitchen Available!", COURT_WIDTH/2, NET_Y + 50, Color(1.0, 0.84, 0))
+
+func _on_kitchen_entered() -> void:
+	show_message("Entered Kitchen!", COURT_WIDTH/2, NET_Y, Color(1.0, 0.84, 0))
+
+func _on_kitchen_exited() -> void:
+	show_message("Exited Kitchen", COURT_WIDTH/2, NET_Y, Color(0.3, 0.69, 0.31))
+
+func _on_kitchen_violation(violation_type: String, message: String) -> void:
+	show_message("FAULT! " + message, COURT_WIDTH/2, COURT_HEIGHT/2, Color(1.0, 0, 0))
+	flash_kitchen_zone(true)
+
+func _on_pressure_changed(new_value: float) -> void:
+	game_state.kitchen_pressure = new_value
+	update_ui()
+
+func _on_kitchen_state_changed(new_state: int) -> void:
+	game_state.kitchen_state = new_state
+	update_ui()
+
+# MODIFIED: Handle kitchen button now uses KitchenSystem
+func handle_kitchen_button_press() -> void:
+	if not kitchen_system:
+		print("ERROR: KitchenSystem not initialized!")
+		return
+	
+	match kitchen_system.current_state:
+		0:  # DISABLED
+			print("Kitchen not available")
+		
+		1:  # AVAILABLE
+			if kitchen_system.enter_kitchen():
+				# System handles player movement through player_data
+				pass
+		
+		2, 3, 4:  # ACTIVE, MUST_EXIT, WARNING
+			kitchen_system.exit_kitchen()
+
+# NEW: Flash kitchen zone for violations
+func flash_kitchen_zone(is_player_side: bool) -> void:
+	game_state.kitchen_flash = {
+		"active": true,
+		"side": "player" if is_player_side else "opponent",
+		"start_time": Time.get_ticks_msec(),
+		"duration": 1000
+	}
+	queue_redraw()
 
 func create_player_team() -> void:
 	print("Creating player team with 2D movement...")
 	
-	# CREATE PLAYER
 	player_node = create_character("Player", Color(0.2, 0.4, 0.8), "right", true)
-	
-	# CREATE PARTNER
 	partner_node = create_character("Partner", Color(0.2, 0.6, 0.9), "left", false)
 	
-	# Set initial positions FROM COURT COORDINATES
 	update_character_screen_position(player_node, player_data)
 	update_character_screen_position(partner_node, partner_data)
 	
@@ -228,59 +323,55 @@ func create_character(name: String, color: Color, court_side: String, is_player:
 	label.add_theme_font_size_override("font_size", 10)
 	sprite.add_child(label)
 	
-	# Add BIGGER, MORE VISIBLE paddle
+	# Add paddle
 	var paddle = Sprite2D.new()
 	paddle.name = "Paddle"
 	var paddle_img = Image.create(12, 40, false, Image.FORMAT_RGBA8)
 	
-	# Create paddle with handle and face
 	for x in range(12):
 		for y in range(40):
-			if y < 15:  # Handle
+			if y < 15:
 				if x >= 4 and x < 8:
-					paddle_img.set_pixel(x, y, Color(0.4, 0.25, 0.1))  # Brown handle
-			else:  # Paddle face
+					paddle_img.set_pixel(x, y, Color(0.4, 0.25, 0.1))
+			else:
 				if x >= 1 and x < 11:
 					if x == 1 or x == 10 or y == 15 or y == 39:
-						paddle_img.set_pixel(x, y, Color.BLACK)  # Border
+						paddle_img.set_pixel(x, y, Color.BLACK)
 					else:
-						paddle_img.set_pixel(x, y, Color(0.6, 0.35, 0.15))  # Light brown face
+						paddle_img.set_pixel(x, y, Color(0.6, 0.35, 0.15))
 	
 	paddle.texture = ImageTexture.create_from_image(paddle_img)
-	paddle.position = Vector2(25, 0)  # Position to the side
-	paddle.z_index = 2  # Above player
+	paddle.position = Vector2(25, 0)
+	paddle.z_index = 2
 	character.add_child(paddle)
 	
-	# Add hit detection circle (visual indicator)
+	# Add hit indicator
 	var hit_indicator = Sprite2D.new()
 	hit_indicator.name = "HitIndicator"
 	var hit_img = Image.create(120, 120, false, Image.FORMAT_RGBA8)
 	
-	# Draw dotted circle for hit range
-	for angle_deg in range(0, 360, 10):  # Every 10 degrees for dotted effect
+	for angle_deg in range(0, 360, 10):
 		var angle = deg_to_rad(angle_deg)
-		for width in range(2):  # Make line 2 pixels wide
+		for width in range(2):
 			var x = int(60 + cos(angle) * (58 + width))
 			var y = int(60 + sin(angle) * (58 + width))
 			if x >= 0 and x < 120 and y >= 0 and y < 120:
-				hit_img.set_pixel(x, y, Color(0, 1, 0, 0.3))  # Green, semi-transparent
+				hit_img.set_pixel(x, y, Color(0, 1, 0, 0.3))
 	
 	hit_indicator.texture = ImageTexture.create_from_image(hit_img)
-	hit_indicator.position = Vector2(-60, -60)  # Center on player
-	hit_indicator.visible = false  # Only show when can hit
-	hit_indicator.z_index = 0  # Behind player
+	hit_indicator.position = Vector2(-60, -60)
+	hit_indicator.visible = false
+	hit_indicator.z_index = 0
 	character.add_child(hit_indicator)
 	
 	character.z_index = 50
 	
 	return character
 
-# CRITICAL: Update screen position from court coordinates
 func update_character_screen_position(character: CharacterBody2D, data: Dictionary) -> void:
 	var screen_pos = court_to_screen(data.court_x, data.court_y)
 	character.position = screen_pos
 
-# MAIN 2D MOVEMENT SYSTEM - This is the fix!
 func update_player_movement_2d(delta: float) -> void:
 	if not player_node or not partner_node:
 		return
@@ -289,43 +380,47 @@ func update_player_movement_2d(delta: float) -> void:
 	if not ball:
 		return
 	
-	# Don't move during serve setup
 	if game_state.waiting_for_serve:
 		return
 	
-	# Get ball court position
 	var ball_court_pos = ball.screen_to_court(ball.global_position) if ball.has_method("screen_to_court") else Vector2.ZERO
 	var ball_on_our_side = ball_court_pos.y > NET_Y
 	
-	# Always check hit opportunities, even when ball is not in play (for debugging)
 	check_hit_opportunity(player_node, player_data, ball)
 	check_hit_opportunity(partner_node, partner_data, ball)
 	
-	# Only move when ball is in play
 	if game_state.ball_in_play:
-		# UPDATE PLAYER MOVEMENT
 		update_player_2d_logic(player_data, ball, ball_court_pos, delta, true)
-		
-		# UPDATE PARTNER MOVEMENT
 		update_player_2d_logic(partner_data, ball, ball_court_pos, delta, false)
 		
-		# Apply movements to visual nodes
 		update_character_screen_position(player_node, player_data)
 		update_character_screen_position(partner_node, partner_data)
 		
-		# Partner AI hit decision
 		check_partner_hit_2d(ball, delta)
 		
-		# Update paddle aim
 		update_paddle_aim(player_node, ball)
 		update_paddle_aim(partner_node, ball)
 	else:
-		# Still update paddle aim even when ball not in play
 		update_paddle_aim(player_node, ball)
 		update_paddle_aim(partner_node, ball)
 	
-	# Update opponents with 2D movement
 	update_opponents_2d(delta)
+	
+	# NEW: Update establishment timers
+	update_establishment_timers(delta)
+
+# NEW: Track feet establishment after leaving kitchen
+func update_establishment_timers(delta: float) -> void:
+	for data in [player_data, partner_data]:
+		if data.establishment_timer > 0:
+			data.establishment_timer -= delta
+			if data.establishment_timer <= 0:
+				data.feet_established = true
+				data.was_in_kitchen = false
+				print("Feet established!")
+		
+		if data.momentum_timer > 0:
+			data.momentum_timer -= delta
 
 func update_player_2d_logic(data: Dictionary, ball: Node, ball_court_pos: Vector2, delta: float, is_player: bool) -> void:
 	var ball_on_our_side = ball_court_pos.y > NET_Y
@@ -335,43 +430,37 @@ func update_player_2d_logic(data: Dictionary, ball: Node, ball_court_pos: Vector
 	if game_state.kitchen_mastery and is_player:
 		speed *= 1.3
 	
-	# Determine if this player should cover the ball
 	var should_cover = should_player_cover_ball(data, ball_court_pos)
 	
 	if ball_on_our_side and should_cover:
-		# PREDICTIVE POSITIONING - Move to intercept
 		var time_to_reach = calculate_time_to_reach(data, ball_court_pos, ball)
 		var predicted_x = ball_court_pos.x + ball.velocity.x * time_to_reach * 0.0005
 		var predicted_y = ball_court_pos.y + ball.velocity.y * time_to_reach * 0.0005
 		
-		# Clamp predictions to court
 		predicted_x = clamp(predicted_x, 20, COURT_WIDTH - 20)
 		predicted_y = clamp(predicted_y, NET_Y + 10, BASELINE_BOTTOM - 10)
 		
-		# APPROACH LOGIC - Move forward for volleys, back for groundstrokes
-		if ball.height > 40 and ball.vertical_velocity > 0:  # High ball coming down
-			# Move back to baseline
+		if ball.height > 40 and ball.vertical_velocity > 0:
 			data.target_court_y = min(predicted_y + 30, BASELINE_BOTTOM - 20)
-		elif ball.height > 20 and predicted_y < data.court_y:  # Ball in front and high
-			# Move forward to volley (but NEVER into kitchen unless button pressed)
-			if not data.in_kitchen:
-				data.target_court_y = max(predicted_y, KITCHEN_LINE_BOTTOM + 10)
+		elif ball.height > 20 and predicted_y < data.court_y:
+			# MODIFIED: Check kitchen system state
+			if is_player and kitchen_system and kitchen_system.current_state == 2:  # ACTIVE
+				# Allow in kitchen
+				data.target_court_y = clamp(predicted_y, NET_Y + 10, KITCHEN_LINE_BOTTOM - 5)
 			else:
-				data.target_court_y = predicted_y
+				# Stay out of kitchen
+				data.target_court_y = max(predicted_y, KITCHEN_LINE_BOTTOM + 10)
 		else:
-			# Normal positioning - STAY OUT OF KITCHEN
 			data.target_court_y = clamp(predicted_y, KITCHEN_LINE_BOTTOM + 10, BASELINE_BOTTOM - 20)
 		
 		data.target_court_x = predicted_x
 		
 	elif ball_on_our_side and not should_cover:
-		# Move to support position (not directly to ball)
 		var support_x = data.default_x
 		var support_y = lerp(data.court_y, data.default_y, 0.5)
 		data.target_court_x = support_x
 		data.target_court_y = support_y
 	else:
-		# Ball on opponent's side - return to default position
 		data.target_court_x = data.default_x
 		data.target_court_y = data.default_y
 	
@@ -380,14 +469,13 @@ func update_player_2d_logic(data: Dictionary, ball: Node, ball_court_pos: Vector
 		var partner_dist = sqrt(pow(data.court_x - partner_data.court_x, 2) + 
 							   pow(data.court_y - partner_data.court_y, 2))
 		if partner_dist < MIN_PLAYER_DISTANCE:
-			# Push away from partner
 			var push_dir_x = data.court_x - partner_data.court_x
 			var push_dir_y = data.court_y - partner_data.court_y
 			var push_dist = sqrt(push_dir_x*push_dir_x + push_dir_y*push_dir_y)
 			if push_dist > 0:
 				data.court_x += (push_dir_x / push_dist) * (MIN_PLAYER_DISTANCE - partner_dist) * 0.5
 				data.court_y += (push_dir_y / push_dist) * (MIN_PLAYER_DISTANCE - partner_dist) * 0.5
-	else:  # Partner avoidance
+	else:
 		var player_dist = sqrt(pow(data.court_x - player_data.court_x, 2) + 
 							  pow(data.court_y - player_data.court_y, 2))
 		if player_dist < MIN_PLAYER_DISTANCE:
@@ -398,41 +486,41 @@ func update_player_2d_logic(data: Dictionary, ball: Node, ball_court_pos: Vector
 				data.court_x += (push_dir_x / push_dist) * (MIN_PLAYER_DISTANCE - player_dist) * 0.5
 				data.court_y += (push_dir_y / push_dist) * (MIN_PLAYER_DISTANCE - player_dist) * 0.5
 	
-	# SMOOTH MOVEMENT IN 2D
+	# SMOOTH MOVEMENT
 	var dx = data.target_court_x - data.court_x
 	var dy = data.target_court_y - data.court_y
 	var dist = sqrt(dx*dx + dy*dy)
 	
 	if dist > speed:
-		# Move toward target at speed
 		data.court_x += (dx / dist) * speed
 		data.court_y += (dy / dist) * speed
 	else:
-		# Snap to target if close
 		data.court_x = data.target_court_x
 		data.court_y = data.target_court_y
 	
-	# Clamp to valid court positions - ENFORCE KITCHEN BOUNDARY
-	if not is_player or (is_player and game_state.kitchen_state != KitchenState.ACTIVE):
-		# Not allowed in kitchen - stay out
+	# ENFORCE KITCHEN BOUNDARY (unless system allows)
+	if is_player:
+		if not kitchen_system or kitchen_system.current_state != 2:  # Not ACTIVE
+			data.court_y = max(data.court_y, KITCHEN_LINE_BOTTOM + 5)
+	else:
 		data.court_y = max(data.court_y, KITCHEN_LINE_BOTTOM + 5)
 	
 	# Track kitchen status
+	var was_in_kitchen_before = data.in_kitchen
 	data.in_kitchen = (data.court_y >= NET_Y and data.court_y <= KITCHEN_LINE_BOTTOM)
 	
-	# Handle kitchen state for player ONLY
-	if is_player and game_state.kitchen_state == KitchenState.ACTIVE:
-		if game_state.in_kitchen:
-			# Player pressed kitchen button - allow in kitchen
-			data.court_y = clamp(data.court_y, NET_Y + 10, KITCHEN_LINE_BOTTOM - 5)
-			data.in_kitchen = true
+	# NEW: Track kitchen entry/exit for feet establishment
+	if not was_in_kitchen_before and data.in_kitchen:
+		data.was_in_kitchen = true
+		data.feet_established = false
+	elif was_in_kitchen_before and not data.in_kitchen:
+		data.establishment_timer = 0.5  # 0.5 seconds to establish feet
 
 func should_player_cover_ball(data: Dictionary, ball_court_pos: Vector2) -> bool:
-	# Determine if this player should cover based on court position
 	if data.court_side == "right":
-		return ball_court_pos.x > COURT_WIDTH * 0.4  # Cover right 60%
+		return ball_court_pos.x > COURT_WIDTH * 0.4
 	else:
-		return ball_court_pos.x < COURT_WIDTH * 0.6  # Cover left 60%
+		return ball_court_pos.x < COURT_WIDTH * 0.6
 
 func calculate_time_to_reach(data: Dictionary, ball_pos: Vector2, ball: Node) -> float:
 	var dx = ball_pos.x - data.court_x
@@ -442,37 +530,28 @@ func calculate_time_to_reach(data: Dictionary, ball_pos: Vector2, ball: Node) ->
 	return dist / player_speed
 
 func check_hit_opportunity(character: CharacterBody2D, data: Dictionary, ball: Node) -> void:
-	# Use SCREEN distance for hit detection, not court distance
 	var ball_screen_pos = ball.global_position
 	var player_screen_pos = character.global_position
 	
-	# Calculate distance in SCREEN coordinates (what the player sees)
 	var screen_dist = ball_screen_pos.distance_to(player_screen_pos)
 	var time_since_hit = Time.get_ticks_msec() - data.last_hit_time
 	var ball_court_pos = ball.screen_to_court(ball.global_position) if ball.has_method("screen_to_court") else Vector2.ZERO
 	
-	# More generous hit detection
 	data.can_hit = screen_dist < HIT_DISTANCE and \
 				   ball.height < 40 and \
 				   ball.height > 0 and \
 				   ball_court_pos.y > NET_Y - 10 and \
 				   ball.in_flight and \
 				   time_since_hit > HIT_COOLDOWN * 1000 and \
-				   (ball.last_hit_team == "opponent" or ball.bounces > 0)
+				   ball.last_hit_team == "opponent"
 	
-	# Update visual feedback
 	if data.can_hit:
-		character.get_node("Sprite").modulate = Color(1.5, 1.5, 1.5)  # Brighter when can hit
-		print(character.name, " CAN HIT! Distance: ", screen_dist)
-		
-		# Show hit indicator
+		character.get_node("Sprite").modulate = Color(1.5, 1.5, 1.5)
 		var hit_indicator = character.get_node_or_null("HitIndicator")
 		if hit_indicator:
 			hit_indicator.visible = true
 	else:
 		character.get_node("Sprite").modulate = Color.WHITE
-		
-		# Hide hit indicator
 		var hit_indicator = character.get_node_or_null("HitIndicator")
 		if hit_indicator:
 			hit_indicator.visible = false
@@ -483,47 +562,52 @@ func update_paddle_aim(character: CharacterBody2D, ball: Node) -> void:
 		var to_ball = (ball.global_position - character.global_position).normalized()
 		paddle.rotation = to_ball.angle() - PI/2
 		
-		# Extend paddle when ball is close
 		var dist = character.global_position.distance_to(ball.global_position)
 		if dist < 100:
-			paddle.position = Vector2(25, 0) + to_ball * 10  # Extend toward ball
+			paddle.position = Vector2(25, 0) + to_ball * 10
 		else:
 			paddle.position = Vector2(25, 0)
 	
-	# Show/hide hit indicator
 	var hit_indicator = character.get_node_or_null("HitIndicator")
 	if hit_indicator:
 		var data = player_data if character.name == "Player" else partner_data
 		hit_indicator.visible = data.can_hit
 
 func check_partner_hit_2d(ball: Node, delta: float) -> void:
-	if ball.last_hit_by == player_node:
-		return
-		
 	if not partner_data.can_hit:
 		return
 	
-	# Don't hit if player can hit
 	if player_data.can_hit:
 		return
 	
-	# Check bounce requirements
 	if game_state.consecutive_hits < 2 and ball.bounces == 0:
 		return
 	
-	# Check if opponent hit it
 	if ball.last_hit_team != "opponent":
 		return
 	
-	# Partner hit decision
 	var hit_chance = 0.75 * delta * 3
 	if randf() < hit_chance:
 		execute_partner_hit(ball)
 
 func execute_partner_hit(ball: Node) -> void:
-	print("Partner hitting ball (2D movement)!")
+	print("Partner hitting ball!")
 	
-	# Smart shot placement
+	# NEW: Check for kitchen violations before hitting
+	if kitchen_system:
+		# Check volley violation
+		if kitchen_system.check_volley_violation(partner_data, ball.height):
+			return  # Violation detected, don't hit
+		
+		# Check step-in violation
+		if kitchen_system.check_step_in_violation(partner_data):
+			return
+	
+	# Store volley position for momentum check
+	if ball.height > 0:
+		partner_data.volley_position = Vector2(partner_data.court_x, partner_data.court_y)
+		partner_data.momentum_timer = 1.5
+	
 	var target_x = COURT_WIDTH * (0.25 + randf() * 0.5)
 	var target_y = BASELINE_TOP + randf() * (NET_Y - BASELINE_TOP - 20)
 	var target_screen = court_to_screen(target_x, target_y)
@@ -532,16 +616,13 @@ func execute_partner_hit(ball: Node) -> void:
 	var dy = target_screen.y - ball.position.y
 	var angle = atan2(dy, dx)
 	
-	# Shot variation
 	var power = 0.4 + randf() * 0.4
 	var shot_type = "normal"
 	
-	# Dink if at kitchen
 	if partner_data.in_kitchen and randf() < 0.3:
 		shot_type = "dink"
 		power = 0.2
 	
-	# Execute hit
 	ball.velocity = Vector2(cos(angle) * 200, sin(angle) * 200)
 	ball.vertical_velocity = 100 + randf() * 40
 	ball.height = max(ball.height, 10.0)
@@ -557,6 +638,13 @@ func execute_partner_hit(ball: Node) -> void:
 	game_state.consecutive_hits += 1
 	game_state.rally_count += 1
 	
+	# Update pressure for partner hit
+	if kitchen_system:
+		if shot_type == "dink":
+			kitchen_system.update_pressure(15.0)  # DINK_PRESSURE
+		else:
+			kitchen_system.update_pressure(3.0)
+	
 	show_message("Partner!", partner_data.court_x, partner_data.court_y - 20, Color(0.2, 0.6, 0.9))
 	update_ui()
 
@@ -568,13 +656,11 @@ func update_opponents_2d(delta: float) -> void:
 	var ball_court_pos = ball.screen_to_court(ball.global_position) if ball.has_method("screen_to_court") else Vector2.ZERO
 	var ball_on_their_side = ball_court_pos.y < NET_Y
 	
-	# Update both opponents with 2D movement
 	for opp_data in [opponent1_data, opponent2_data]:
 		if ball_on_their_side:
 			var should_cover = should_opponent_cover(opp_data, ball_court_pos)
 			
 			if should_cover:
-				# Move to intercept with 2D positioning
 				var time_to_reach = calculate_time_to_reach(opp_data, ball_court_pos, ball)
 				var predicted_x = ball_court_pos.x + ball.velocity.x * time_to_reach * 0.0005
 				var predicted_y = ball_court_pos.y + ball.velocity.y * time_to_reach * 0.0005
@@ -582,7 +668,6 @@ func update_opponents_2d(delta: float) -> void:
 				predicted_x = clamp(predicted_x, 20, COURT_WIDTH - 20)
 				predicted_y = clamp(predicted_y, BASELINE_TOP + 10, NET_Y - 10)
 				
-				# Approach net for volleys BUT NEVER ENTER KITCHEN
 				if ball.height > 30 and predicted_y > opp_data.court_y:
 					opp_data.target_court_y = min(predicted_y, KITCHEN_LINE_TOP - 10)
 				else:
@@ -590,15 +675,12 @@ func update_opponents_2d(delta: float) -> void:
 				
 				opp_data.target_court_x = predicted_x
 			else:
-				# Support position
 				opp_data.target_court_x = opp_data.default_x
 				opp_data.target_court_y = opp_data.default_y
 		else:
-			# Return to default
 			opp_data.target_court_x = opp_data.default_x
 			opp_data.target_court_y = opp_data.default_y
 		
-		# Move opponent smoothly
 		var speed = 150.0 * delta
 		var dx = opp_data.target_court_x - opp_data.court_x
 		var dy = opp_data.target_court_y - opp_data.court_y
@@ -611,14 +693,11 @@ func update_opponents_2d(delta: float) -> void:
 			opp_data.court_x = opp_data.target_court_x
 			opp_data.court_y = opp_data.target_court_y
 		
-		# ENFORCE: Opponents NEVER enter kitchen
 		opp_data.court_y = min(opp_data.court_y, KITCHEN_LINE_TOP - 5)
 		
-		# Check if can hit
 		check_opponent_hit_opportunity(opp_data, ball, ball_court_pos)
 		
-		# Try to hit
-		if opp_data.can_hit and randf() < 0.02:  # 2% chance per frame
+		if opp_data.can_hit and randf() < 0.02:
 			opponent_hit_ball_2d(opp_data, ball)
 
 func should_opponent_cover(opp_data: Dictionary, ball_pos: Vector2) -> bool:
@@ -638,12 +717,11 @@ func check_opponent_hit_opportunity(opp_data: Dictionary, ball: Node, ball_court
 					   ball_court_pos.y < NET_Y and \
 					   ball.in_flight and \
 					   time_since_hit > HIT_COOLDOWN * 1000 and \
-					   ball.bounces > 0  # Must let serve bounce
+					   ball.bounces > 0
 
 func opponent_hit_ball_2d(opp_data: Dictionary, ball: Node) -> void:
 	print("Opponent hitting from 2D position!")
 	
-	# Target player or partner
 	var target_data = player_data if randf() > 0.5 else partner_data
 	var target_screen = court_to_screen(target_data.court_x, target_data.court_y + 50)
 	
@@ -666,34 +744,6 @@ func opponent_hit_ball_2d(opp_data: Dictionary, ball: Node) -> void:
 	game_state.rally_count += 1
 	
 	show_message("Return!", opp_data.court_x, opp_data.court_y - 20, Color(0.8, 0.2, 0.2))
-
-func handle_kitchen_button_press() -> void:
-	if not player_node:
-		return
-	
-	match game_state.kitchen_state:
-		KitchenState.AVAILABLE:
-			# Move player to kitchen
-			game_state.kitchen_state = KitchenState.ACTIVE
-			game_state.in_kitchen = true
-			player_data.in_kitchen = true
-			
-			# Smooth movement to kitchen
-			player_data.target_court_y = NET_Y + 35
-			
-			update_kitchen_pressure(5)
-			show_message("Entered Kitchen!", COURT_WIDTH/2, NET_Y, Color(1.0, 0.84, 0))
-			
-		KitchenState.ACTIVE, KitchenState.MUST_EXIT:
-			# Exit kitchen
-			game_state.kitchen_state = KitchenState.DISABLED
-			game_state.in_kitchen = false
-			player_data.in_kitchen = false
-			
-			# Smooth movement back
-			player_data.target_court_y = player_data.default_y
-			
-			show_message("Exited Kitchen", COURT_WIDTH/2, NET_Y, Color(0.3, 0.69, 0.31))
 
 func create_swipe_detector() -> void:
 	var swipe_detector = Node2D.new()
@@ -719,32 +769,60 @@ func _on_swipe_started() -> void:
 func _on_swipe_completed(angle: float, power: float, shot_type: String) -> void:
 	print("Swipe completed! Angle: ", angle, " Power: ", power, " Type: ", shot_type)
 	
-	# Handle serve
 	if game_state.waiting_for_serve and game_state.can_serve:
 		player_serve_with_swipe(angle, power)
 		return
 	
-	# Handle regular hit
 	if game_state.ball_in_play:
 		var ball = get_node_or_null("Ball")
 		if ball:
-			# Check if player or partner can hit
 			print("Checking hit - Player can_hit: ", player_data.can_hit, " Partner can_hit: ", partner_data.can_hit)
 			
-			# Priority 1: Check if player can hit
 			if player_data.can_hit:
 				print("PLAYER HITTING BALL!")
+				
+				# NEW: Check for kitchen violations before hitting
+				if kitchen_system:
+					# Check volley violation
+					if kitchen_system.check_volley_violation(player_data, ball.height):
+						return  # Violation detected, don't hit
+					
+					# Check step-in violation
+					if kitchen_system.check_step_in_violation(player_data):
+						return
+					
+					# Check momentum violation
+					if kitchen_system.check_momentum_violation(player_data):
+						return
+				
+				# Store volley position for momentum check
+				if ball.height > 0:
+					player_data.volley_position = Vector2(player_data.court_x, player_data.court_y)
+					player_data.momentum_timer = 1.5
+				
 				ball.receive_hit(angle, power, shot_type)
 				player_data.last_hit_time = Time.get_ticks_msec()
 				player_data.can_hit = false
 				game_state.consecutive_hits += 1
 				game_state.rally_count += 1
-				update_kitchen_pressure(3)
+				
+				# Update pressure based on shot type
+				if kitchen_system:
+					if shot_type == "dink":
+						kitchen_system.update_pressure(15.0)  # DINK_PRESSURE
+					elif shot_type == "power":
+						kitchen_system.update_pressure(-5.0)  # POWER_SHOT_PRESSURE
+					else:
+						kitchen_system.update_pressure(3.0)
+					
+					# Check if player hit from kitchen - trigger MUST_EXIT
+					if player_data.in_kitchen and ball.height > 0:
+						kitchen_system.force_must_exit()
+				
 				update_ui()
 				show_message("Hit!", player_data.court_x, player_data.court_y - 20, Color(0.2, 0.8, 0.2))
 				return
 			
-			# Priority 2: Check if partner can hit
 			if partner_data.can_hit:
 				print("PARTNER HITTING BALL!")
 				ball.receive_hit(angle, power, shot_type)
@@ -793,7 +871,7 @@ func player_serve_with_swipe(angle: float, power: float) -> void:
 func _process(delta: float) -> void:
 	if game_state.game_active:
 		update_game(delta)
-		update_player_movement_2d(delta)  # Use new 2D movement
+		update_player_movement_2d(delta)
 		
 		# Update mastery timer
 		if game_state.kitchen_mastery:
@@ -802,12 +880,19 @@ func _process(delta: float) -> void:
 				end_mastery_mode()
 	
 	update_messages(delta)
+	
+	# Update kitchen flash
+	if game_state.kitchen_flash and game_state.kitchen_flash.active:
+		var elapsed = Time.get_ticks_msec() - game_state.kitchen_flash.start_time
+		if elapsed > game_state.kitchen_flash.duration:
+			game_state.kitchen_flash = null
+	
 	queue_redraw()
 
 func _draw() -> void:
 	draw_court()
 	
-	# Draw opponents with 2D positions
+	# Draw opponents
 	var opp1_pos = court_to_screen(opponent1_data.court_x, opponent1_data.court_y)
 	draw_circle(opp1_pos, 18, Color(0.8, 0.2, 0.2))
 	draw_arc(opp1_pos, 18, 0, TAU, 32, Color.BLACK, 2.0)
@@ -824,21 +909,15 @@ func _draw() -> void:
 	draw_messages()
 
 func update_kitchen_pressure(amount: float) -> void:
-	game_state.kitchen_pressure = clamp(
-		game_state.kitchen_pressure + amount,
-		0,
-		game_state.kitchen_pressure_max
-	)
-	
-	update_ui()
-	
-	if game_state.kitchen_pressure >= game_state.kitchen_pressure_max and not game_state.kitchen_mastery:
-		activate_mastery_mode()
+	if kitchen_system:
+		kitchen_system.update_pressure(amount)
 
 func activate_mastery_mode() -> void:
 	game_state.kitchen_mastery = true
 	game_state.kitchen_mastery_timer = 8.0
-	game_state.kitchen_pressure = 0
+	
+	if kitchen_system:
+		kitchen_system.pressure = 0
 	
 	show_message("KITCHEN MASTERY ACTIVE!", COURT_WIDTH/2, COURT_HEIGHT/2, Color(1.0, 0.84, 0))
 	
@@ -857,7 +936,6 @@ func init_game() -> void:
 	game_state.waiting_for_serve = true
 	game_state.can_serve = true
 	
-	# Initialize target positions
 	player_data.target_court_x = player_data.court_x
 	player_data.target_court_y = player_data.court_y
 	partner_data.target_court_x = partner_data.court_x
@@ -874,29 +952,8 @@ func init_game() -> void:
 	update_ui()
 
 func update_game(delta: float) -> void:
-	update_kitchen_state_machine(delta)
-
-func update_kitchen_state_machine(delta: float) -> void:
-	if game_state.kitchen_state_timer > 0:
-		game_state.kitchen_state_timer -= delta
-		
-		var ui = get_node_or_null("UI")
-		if ui and ui.has_method("update_kitchen_button"):
-			var state_name = ""
-			match game_state.kitchen_state:
-				KitchenState.AVAILABLE: state_name = "AVAILABLE"
-				KitchenState.ACTIVE: state_name = "ACTIVE"
-				KitchenState.MUST_EXIT: state_name = "MUST_EXIT"
-				KitchenState.WARNING: state_name = "WARNING"
-				KitchenState.COOLDOWN: state_name = "COOLDOWN"
-				_: state_name = "DISABLED"
-			ui.update_kitchen_button(state_name, game_state.kitchen_state_timer)
-	
-	match game_state.kitchen_state:
-		KitchenState.AVAILABLE:
-			if game_state.kitchen_state_timer <= 0:
-				game_state.kitchen_state = KitchenState.DISABLED
-				show_message("Opportunity missed!", COURT_WIDTH/2.0, NET_Y + 50, Color(1.0, 0.6, 0))
+	# Kitchen system handles its own updates
+	pass
 
 func update_ui() -> void:
 	var score_label = get_node_or_null("UI/HUD/TopPanel/ScoreLabel")
@@ -905,10 +962,11 @@ func update_ui() -> void:
 	
 	var ui = get_node_or_null("UI")
 	if ui and ui.has_method("update_mastery_fill"):
-		var percent = (game_state.kitchen_pressure / game_state.kitchen_pressure_max) * 100
+		var percent = 0
+		if kitchen_system:
+			percent = kitchen_system.get_pressure_percent()
 		ui.update_mastery_fill(percent)
 
-# PERSPECTIVE CALCULATION - EXACT FROM PROTOTYPE
 func get_visual_court_bounds(y: float) -> Dictionary:
 	var perspective_factor = 1.0 - (1.0 - PERSPECTIVE_SCALE) * (1.0 - y / COURT_HEIGHT)
 	var visual_width = COURT_WIDTH * perspective_factor
@@ -935,7 +993,6 @@ func draw_court() -> void:
 	var center_x = screen_width / 2.0
 	var court_top = COURT_OFFSET_Y * court_scale
 	
-	# Court surface with perspective
 	var top_left = Vector2(center_x - (COURT_WIDTH / 2.0) * PERSPECTIVE_SCALE * court_scale, court_top)
 	var top_right = Vector2(center_x + (COURT_WIDTH / 2.0) * PERSPECTIVE_SCALE * court_scale, court_top)
 	var bottom_left = Vector2(center_x - (COURT_WIDTH / 2.0) * court_scale, court_top + COURT_HEIGHT * 0.9 * court_scale)
@@ -968,21 +1025,38 @@ func draw_kitchen_zones(center_x: float, court_top: float) -> void:
 	var net_scale = 1.0 - (1.0 - PERSPECTIVE_SCALE) * (1.0 - NET_Y / COURT_HEIGHT)
 	var bottom_kitchen_scale = 1.0 - (1.0 - PERSPECTIVE_SCALE) * (1.0 - KITCHEN_LINE_BOTTOM / COURT_HEIGHT)
 	
+	# Draw top kitchen
 	var top_kitchen_points = PackedVector2Array([
 		Vector2(center_x - (COURT_WIDTH/2.0) * top_kitchen_scale * court_scale, kitchen_top_pos.y),
 		Vector2(center_x + (COURT_WIDTH/2.0) * top_kitchen_scale * court_scale, kitchen_top_pos.y),
 		Vector2(center_x + (COURT_WIDTH/2.0) * net_scale * court_scale, net_pos.y),
 		Vector2(center_x - (COURT_WIDTH/2.0) * net_scale * court_scale, net_pos.y)
 	])
-	draw_colored_polygon(top_kitchen_points, kitchen_color)
 	
+	# Flash effect for violations
+	var top_color = kitchen_color
+	if game_state.kitchen_flash and game_state.kitchen_flash.side == "opponent":
+		var flash_progress = float(Time.get_ticks_msec() - game_state.kitchen_flash.start_time) / game_state.kitchen_flash.duration
+		var flash_alpha = 0.5 * (1.0 - flash_progress)
+		top_color = Color(1.0, 0, 0, flash_alpha)
+	
+	draw_colored_polygon(top_kitchen_points, top_color)
+	
+	# Draw bottom kitchen
 	var bottom_kitchen_points = PackedVector2Array([
 		Vector2(center_x - (COURT_WIDTH/2.0) * net_scale * court_scale, net_pos.y),
 		Vector2(center_x + (COURT_WIDTH/2.0) * net_scale * court_scale, net_pos.y),
 		Vector2(center_x + (COURT_WIDTH/2.0) * bottom_kitchen_scale * court_scale, kitchen_bottom_pos.y),
 		Vector2(center_x - (COURT_WIDTH/2.0) * bottom_kitchen_scale * court_scale, kitchen_bottom_pos.y)
 	])
-	draw_colored_polygon(bottom_kitchen_points, kitchen_color)
+	
+	var bottom_color = kitchen_color
+	if game_state.kitchen_flash and game_state.kitchen_flash.side == "player":
+		var flash_progress = float(Time.get_ticks_msec() - game_state.kitchen_flash.start_time) / game_state.kitchen_flash.duration
+		var flash_alpha = 0.5 * (1.0 - flash_progress)
+		bottom_color = Color(1.0, 0, 0, flash_alpha)
+	
+	draw_colored_polygon(bottom_kitchen_points, bottom_color)
 	
 	var font = ThemeDB.fallback_font
 	draw_string(font, Vector2(center_x - 30, net_pos.y - 30), "KITCHEN", 
@@ -1066,7 +1140,7 @@ func draw_dashed_line_custom(from: Vector2, to: Vector2, color: Color, width: fl
 		current_length += dash_length + gap_length
 
 func get_kitchen_zone_color() -> Color:
-	if game_state.in_kitchen:
+	if kitchen_system and kitchen_system.current_state == 2:  # ACTIVE
 		return Color(1.0, 0.78, 0, 0.15)
 	else:
 		return Color(1.0, 0.78, 0, 0.06)
