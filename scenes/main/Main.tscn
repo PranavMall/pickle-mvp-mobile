@@ -81,9 +81,18 @@ offset_right = 40.0
 offset_bottom = 23.0
 
 [node name="KitchenButton" type="Button" parent="UI/HUD"]
-layout_mode = 0
-offset_right = 80.0
-offset_bottom = 80.0
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 305.0
+offset_top = 792.0
+offset_right = 385.0
+offset_bottom = 872.0
+grow_horizontal = 0
+grow_vertical = 0
 script = ExtResource("5_1rhdn")
 
 [node name="KitchenTimer" type="Label" parent="UI/HUD/KitchenButton"]
@@ -93,9 +102,15 @@ offset_bottom = 23.0
 
 [node name="MasteryButton" type="Button" parent="UI/HUD"]
 custom_minimum_size = Vector2(70, 70)
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 15.0
+offset_top = 792.0
+offset_right = 85.0
+offset_bottom = 862.0
+grow_vertical = 0
 script = ExtResource("6_sjxhf")
 
 [node name="FillBar" type="ProgressBar" parent="UI/HUD/MasteryButton"]
