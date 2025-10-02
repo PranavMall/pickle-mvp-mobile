@@ -177,11 +177,9 @@ func execute_bounce() -> void:
 	# Check for kitchen opportunity
 	if bounce_side == "player" and bounces_on_current_side == 1:
 		if court_pos.y >= main.NET_Y and court_pos.y <= main.KITCHEN_LINE_BOTTOM:
-			if main.game_state.kitchen_state == main.KitchenState.DISABLED:
-				main.game_state.kitchen_state = main.KitchenState.AVAILABLE
-				main.game_state.kitchen_state_timer = 2.5
-				main.show_message("Kitchen Available!", main.COURT_WIDTH/2, main.NET_Y + 50, Color(1.0, 0.84, 0))
-				print("Kitchen opportunity triggered!")
+			if main.kitchen_system:
+				main.kitchen_system.trigger_opportunity()
+				print("🎾 Kitchen opportunity triggered!")
 	
 	# Check for double bounce fault
 	if bounces_on_current_side >= 2:

@@ -1,37 +1,36 @@
-# UISetup.gd - Fixed with proper button types
+# UI/UISetup.gd - Day 5 Clean Version
 extends CanvasLayer
 
 @onready var main = get_node("/root/Main")
 
 func _ready() -> void:
-	setup_top_panel()
-	setup_instructions()
-	setup_power_indicator()
-
-func setup_complete_ui() -> void:
-	# Get existing HUD from scene (it already exists)
-	var hud = get_node_or_null("HUD")
-	if not hud:
-		print("ERROR: HUD node not found in UI!")
-		return
+	# Wait for Main to be ready
+	await get_tree().process_frame
 	
-	# Setup components that already exist in scene
+	# ONLY setup non-button UI elements
 	setup_top_panel()
 	setup_instructions()
 	setup_power_indicator()
+	
+	# DON'T touch Kitchen/Mastery buttons - they setup themselves!
+	print("UISetup ready - buttons manage themselves")
 
 func setup_top_panel() -> void:
 	var top_panel = get_node_or_null("HUD/TopPanel")
 	if not top_panel:
 		return
 	
-	# Style the existing panel
+	# Position and size
+	top_panel.position = Vector2(10, 5)
+	top_panel.size = Vector2(410, 40)
+	
+	# Style
 	var panel_style = StyleBoxFlat.new()
 	panel_style.set_corner_radius_all(20)
 	panel_style.bg_color = Color(0, 0, 0, 0.6)
 	top_panel.add_theme_stylebox_override("panel", panel_style)
 	
-	# Setup existing labels
+	# Score Label
 	var score_label = get_node_or_null("HUD/TopPanel/ScoreLabel")
 	if score_label:
 		score_label.text = "0-0-2"
@@ -39,19 +38,33 @@ func setup_top_panel() -> void:
 		score_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0))
 		score_label.add_theme_font_size_override("font_size", 16)
 	
+	# Server Indicator
 	var server_label = get_node_or_null("HUD/TopPanel/ServerIndicator")
 	if server_label:
-		server_label.text = "You Serve"
+		server_label.text = "You"
 		server_label.position = Vector2(150, 10)
 		server_label.add_theme_color_override("font_color", Color(0.3, 0.69, 0.31))
 		server_label.add_theme_font_size_override("font_size", 12)
 	
+	# Rally Counter
 	var rally_label = get_node_or_null("HUD/TopPanel/RallyCounter")
 	if rally_label:
-		rally_label.text = "R: 0"
+		rally_label.text = "R:0"
 		rally_label.position = Vector2(250, 10)
 		rally_label.add_theme_color_override("font_color", Color(0.67, 0.67, 0.67))
 		rally_label.add_theme_font_size_override("font_size", 11)
+	
+	# Violations Counter
+	var violations_label = get_node_or_null("HUD/TopPanel/ViolationsLabel")
+	if not violations_label:
+		violations_label = Label.new()
+		violations_label.name = "ViolationsLabel"
+		top_panel.add_child(violations_label)
+	
+	violations_label.text = "KV:0"
+	violations_label.position = Vector2(320, 10)
+	violations_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0))
+	violations_label.add_theme_font_size_override("font_size", 11)
 
 func setup_instructions() -> void:
 	var instructions = get_node_or_null("HUD/Instructions")
@@ -101,19 +114,14 @@ func setup_power_indicator() -> void:
 		bar_style.bg_color = Color(0.3, 0.69, 0.31)
 		power_bar.add_theme_stylebox_override("fill", bar_style)
 
-func _on_kitchen_button_pressed() -> void:
-	print("Kitchen button pressed!")
-	if main and main.has_method("handle_kitchen_button_press"):
-		main.handle_kitchen_button_press()
-
-func _on_mastery_button_pressed() -> void:
-	print("Mastery button pressed!")
-	if main and main.has_method("activate_mastery_mode"):
-		if main.game_state.kitchen_pressure >= main.game_state.kitchen_pressure_max:
-			main.activate_mastery_mode()
-
-# Update functions
+# Update score only - buttons update themselves
 func update_score(player_score: int, opponent_score: int, server_number: int) -> void:
 	var score_label = get_node_or_null("HUD/TopPanel/ScoreLabel")
 	if score_label:
 		score_label.text = "%d-%d-%d" % [player_score, opponent_score, server_number]
+
+# Update violations counter
+func update_violations(player_violations: int) -> void:
+	var violations_label = get_node_or_null("HUD/TopPanel/ViolationsLabel")
+	if violations_label:
+		violations_label.text = "KV:%d" % player_violations

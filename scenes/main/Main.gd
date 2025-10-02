@@ -968,46 +968,56 @@ func draw_court() -> void:
 	draw_net(center_x, court_top)
 	
 func create_kitchen_system() -> void:
-	var kitchen_script = load("res://scripts/systems/KitchenSystem.gd")
-	if not kitchen_script:
+		var kitchen_script = load("res://scripts/systems/KitchenSystem.gd")
+		if not kitchen_script:
 			print("ERROR: Cannot load KitchenSystem.gd")
 			return
-	
-	kitchen_system = Node.new()
-	kitchen_system.name = "KitchenSystem"
-	kitchen_system.set_script(kitchen_script)
-	add_child(kitchen_system)
-	kitchen_system.main_node = self
-	kitchen_system.player_data = player_data
-	
-	# Connect signals
-	kitchen_system.kitchen_opportunity.connect(_on_kitchen_opportunity)
-	kitchen_system.kitchen_entered.connect(_on_kitchen_entered)
-	kitchen_system.kitchen_exited.connect(_on_kitchen_exited)
-	kitchen_system.kitchen_violation.connect(_on_kitchen_violation)
-	kitchen_system.pressure_changed.connect(_on_pressure_changed)
-	kitchen_system.state_changed.connect(_on_kitchen_state_changed)
-	
-	print("KitchenSystem created!")
-	
-	# NEW: Connect UI buttons to KitchenSystem
-	await get_tree().process_frame  # Wait for UI to be ready
-	
-	var kitchen_button = get_node_or_null("UI/HUD/KitchenButton")
-	if kitchen_button and kitchen_button.has_method("set_kitchen_system"):
-		kitchen_button.set_kitchen_system(kitchen_system)
-		kitchen_button.main_node = self
-		print("Kitchen button connected!")
-	else:
-		print("WARNING: Kitchen button not found or missing method!")
-	
-	var mastery_button = get_node_or_null("UI/HUD/MasteryButton")
-	if mastery_button and mastery_button.has_method("set_kitchen_system"):
-		mastery_button.set_kitchen_system(kitchen_system)
-		mastery_button.main_node = self
-		print("Mastery button connected!")
-	else:
-		print("WARNING: Mastery button not found or missing method!")
+
+		kitchen_system = Node.new()
+		kitchen_system.name = "KitchenSystem"
+		kitchen_system.set_script(kitchen_script)
+		add_child(kitchen_system)
+
+		kitchen_system.main_node = self
+		kitchen_system.player_data = player_data
+
+# Connect signals
+		kitchen_system.kitchen_opportunity.connect(_on_kitchen_opportunity)
+		kitchen_system.kitchen_entered.connect(_on_kitchen_entered)
+		kitchen_system.kitchen_exited.connect(_on_kitchen_exited)
+		kitchen_system.kitchen_violation.connect(_on_kitchen_violation)
+		kitchen_system.pressure_changed.connect(_on_pressure_changed)
+		kitchen_system.state_changed.connect(_on_kitchen_state_changed)
+
+		print("=== KitchenSystem created! ===")
+
+# CRITICAL: Wait for buttons to be ready
+		await get_tree().create_timer(0.1).timeout
+
+# Connect Kitchen Button
+		var kitchen_button = get_node_or_null("UI/HUD/KitchenButton")
+		if kitchen_button:
+				if kitchen_button.has_method("set_kitchen_system"):
+					kitchen_button.set_kitchen_system(kitchen_system)
+					kitchen_button.main_node = self
+					print("✅ Kitchen button connected!")
+				else:
+					print("❌ ERROR: KitchenButton script not attached properly!")
+		else:
+			print("❌ ERROR: KitchenButton node not found!")
+
+# Connect Mastery Button
+		var mastery_button = get_node_or_null("UI/HUD/MasteryButton")
+		if mastery_button:
+			if mastery_button.has_method("set_kitchen_system"):
+				mastery_button.set_kitchen_system(kitchen_system)
+				mastery_button.main_node = self
+				print("✅ Mastery button connected!")
+			else:
+					print("❌ ERROR: MasteryButton script not attached properly!")
+		else:
+			print("❌ ERROR: MasteryButton node not found!")
+		print("=== Kitchen System Setup Complete ===")
 
 func draw_kitchen_zones(center_x: float, court_top: float) -> void:
 	var kitchen_color = get_kitchen_zone_color()
