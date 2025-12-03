@@ -12,10 +12,10 @@ const MIN_SWIPE_DISTANCE: float = 30.0
 const MAX_SWIPE_DISTANCE: float = 250.0
 const SWIPE_TIMEOUT: float = 2.0  # Max time for a swipe
 
-# References
-@onready var main = get_node("/root/Main")
-@onready var ball = get_node("/root/Main/Ball")
-@onready var ui = get_node("/root/Main/UI")
+# References - initialized in _ready() since this node is created dynamically
+var main: Node = null
+var ball: Node = null
+var ui: Node = null
 
 # Signals
 signal swipe_completed(angle: float, power: float, shot_type: String)
@@ -23,14 +23,24 @@ signal swipe_started()
 signal swipe_cancelled()
 
 func _ready() -> void:
-	print("SwipeDetector _ready() called!")
-	
+	# Initialize references - must be done here since node is created dynamically
+	await get_tree().process_frame  # Wait for tree to be ready
+
+	main = get_node_or_null("/root/Main")
+	ball = get_node_or_null("/root/Main/Ball")
+	ui = get_node_or_null("/root/Main/UI")
+
+	if not main:
+		push_error("SwipeDetector: Cannot find Main node!")
+		return
+	if not ball:
+		push_error("SwipeDetector: Cannot find Ball node!")
+
 	# Make sure we're processing input
 	set_process_input(true)
 	set_process_unhandled_input(true)
-	
-	print("SwipeDetector ready - Input processing enabled: ", is_processing_input())
-	print("SwipeDetector ready - Unhandled input processing enabled: ", is_processing_unhandled_input())
+
+	print("SwipeDetector ready - Main: ", main != null, " Ball: ", ball != null)
 
 func _input(event: InputEvent) -> void:
 	# Handle mouse input for desktop testing
