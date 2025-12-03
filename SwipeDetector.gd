@@ -33,26 +33,17 @@ func _ready() -> void:
 	print("SwipeDetector ready - Unhandled input processing enabled: ", is_processing_unhandled_input())
 
 func _input(event: InputEvent) -> void:
-	# TEST: Print ANY input event to see if we're receiving them
-	if event is InputEventMouse:
-		print("MOUSE EVENT DETECTED: ", event.get_class())
-	
 	# Handle mouse input for desktop testing
 	if event is InputEventMouseButton:
-		print("Mouse button event - Button: ", event.button_index, " Pressed: ", event.pressed, " Position: ", event.position)
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
-				print("LEFT MOUSE PRESSED at: ", event.position)
 				start_swipe(event.position)
 			else:
-				print("LEFT MOUSE RELEASED at: ", event.position)
 				complete_swipe()
 	elif event is InputEventMouseMotion:
-		# Only print motion when swiping to avoid spam
 		if is_swiping:
-			print("Mouse motion while swiping: ", event.position)
 			update_swipe(event.position)
-	
+
 	# Handle touch input for mobile
 	elif event is InputEventScreenTouch:
 		if event.pressed:
@@ -66,20 +57,18 @@ func start_swipe(pos: Vector2) -> void:
 	# Don't start new swipe if already swiping
 	if is_swiping:
 		return
-	
+
 	# Check if we're in a valid state to swipe
 	if not can_swipe():
 		return
-	
+
 	touch_start = pos
 	touch_current = pos
 	is_swiping = true
 	swipe_start_time = Time.get_ticks_msec()
-	
+
 	emit_signal("swipe_started")
 	show_power_indicator()
-	
-	print("Swipe started at: ", pos)
 
 func update_swipe(pos: Vector2) -> void:
 	if not is_swiping:
@@ -98,35 +87,31 @@ func update_swipe(pos: Vector2) -> void:
 func complete_swipe() -> void:
 	if not is_swiping:
 		return
-	
+
 	is_swiping = false
 	hide_power_indicator()
-	
+
 	# Calculate swipe properties
 	var swipe_vector = touch_current - touch_start
 	var distance = swipe_vector.length()
-	
-	print("Swipe distance: ", distance)
-	
+
 	# Check minimum swipe distance
 	if distance < MIN_SWIPE_DISTANCE:
 		cancel_swipe()
 		return
-	
+
 	# Calculate power (0.0 to 1.0)
 	var power = min(distance / MAX_SWIPE_DISTANCE, 1.0)
-	
+
 	# Calculate angle
 	var angle = swipe_vector.angle()
-	
+
 	# Determine shot type
 	var shot_type = determine_shot_type(power, angle)
-	
-	print("Swipe completed - Power: ", power, " Angle: ", angle, " Type: ", shot_type)
-	
+
 	# Emit signal for game to handle
 	emit_signal("swipe_completed", angle, power, shot_type)
-	
+
 	# Reset
 	touch_start = Vector2.ZERO
 	touch_current = Vector2.ZERO
@@ -137,31 +122,19 @@ func cancel_swipe() -> void:
 	touch_current = Vector2.ZERO
 	hide_power_indicator()
 	emit_signal("swipe_cancelled")
-	print("Swipe cancelled")
 
 func can_swipe() -> bool:
 	if not main or not ball:
-		print("can_swipe: Missing references")
 		return false
-	
-	# ALWAYS allow swipe during gameplay for testing
-	# We'll let the hit detection determine if it actually hits
-	
+
 	# 1. Is it a serve situation?
 	if main.game_state.waiting_for_serve:
-		if main.game_state.can_serve:
-			print("can_swipe: Player can serve")
-			return true
-		else:
-			print("can_swipe: Waiting for partner/opponent serve")
-			return false
-	
+		return main.game_state.can_serve
+
 	# 2. During rally, ALWAYS allow swipe (hit detection will handle if it connects)
 	if main.game_state.ball_in_play:
-		print("can_swipe: Ball in play - swipe allowed")
 		return true
-	
-	print("can_swipe: No ball in play")
+
 	return false
 
 func determine_shot_type(power: float, angle: float) -> String:
