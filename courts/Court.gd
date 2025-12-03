@@ -134,16 +134,16 @@ func _on_kitchen_exited(body: Node2D, zone: String) -> void:
 			# Player exited their kitchen
 			print("Player exited kitchen")
 
-func add_bounce_marker(position: Vector2) -> void:
+func add_bounce_marker(marker_pos: Vector2) -> void:
 	# Create visual bounce indicator
 	var marker = Node2D.new()
 	add_child(marker)
-	
+
 	# Store marker data
 	bounce_markers.append({
 		"node": marker,
 		"time": Time.get_ticks_msec(),
-		"position": position
+		"position": marker_pos
 	})
 	
 	# Limit number of markers
