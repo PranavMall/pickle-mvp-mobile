@@ -204,10 +204,10 @@ func _ready() -> void:
 	print("=== PICKLEBALL DOUBLES MVP ===")
 	print("Screen: %dx%d, Court scale: %.2f" % [int(screen_width), int(screen_height), court_scale])
 
-	# Initialize all systems
+	# Initialize all systems - await to ensure completion
 	await get_tree().process_frame
-	create_systems()
-	create_swipe_detector()
+	await create_systems()
+	await create_swipe_detector()
 	create_player_team()
 
 	# Start game
@@ -409,6 +409,8 @@ func update_character_screen_position(character: CharacterBody2D, data: Dictiona
 # =================== SWIPE INPUT ===================
 func create_swipe_detector() -> void:
 	"""Create the swipe input detector"""
+	print("Creating SwipeDetector...")
+
 	var swipe_detector = Node2D.new()
 	swipe_detector.name = "SwipeDetector"
 	swipe_detector.z_index = 150
@@ -416,9 +418,21 @@ func create_swipe_detector() -> void:
 
 	var swipe_script = load("res://SwipeDetector.gd")
 	if swipe_script:
+		print("SwipeDetector script loaded successfully")
 		swipe_detector.set_script(swipe_script)
-		swipe_detector.swipe_completed.connect(_on_swipe_completed)
-		swipe_detector.swipe_started.connect(_on_swipe_started)
+
+		# Wait a frame for _ready() to complete
+		await get_tree().process_frame
+
+		# Now connect signals
+		if swipe_detector.has_signal("swipe_completed"):
+			swipe_detector.swipe_completed.connect(_on_swipe_completed)
+			swipe_detector.swipe_started.connect(_on_swipe_started)
+			print("SwipeDetector signals connected!")
+		else:
+			push_error("SwipeDetector missing signals!")
+	else:
+		push_error("Failed to load SwipeDetector.gd!")
 
 func _on_swipe_started() -> void:
 	"""Handle swipe start"""
