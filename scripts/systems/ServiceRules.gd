@@ -11,7 +11,7 @@ var is_serve_in_progress: bool = false
 var expected_service_box: String = ""  # "left" or "right"
 var serve_bounced: bool = false
 var return_bounced: bool = false
-var double_bounce_complete: bool = false
+var _double_bounce_done: bool = false  # Renamed to avoid signal conflict
 var consecutive_hits: int = 0
 
 # Reference to main
@@ -47,7 +47,7 @@ func start_serve(serving_from_top: bool, target_box: String) -> void:
 	expected_service_box = target_box
 	serve_bounced = false
 	return_bounced = false
-	double_bounce_complete = false
+	_double_bounce_done = false
 	consecutive_hits = 0
 
 	print("Serve started - expecting bounce in %s box" % expected_service_box)
@@ -58,7 +58,7 @@ func reset() -> void:
 	expected_service_box = ""
 	serve_bounced = false
 	return_bounced = false
-	double_bounce_complete = false
+	_double_bounce_done = false
 	consecutive_hits = 0
 
 func validate_serve_bounce(court_x: float, court_y: float, serving_from_top: bool) -> bool:
@@ -127,7 +127,7 @@ func record_hit(team: String) -> void:
 		consecutive_hits, serve_bounced, return_bounced
 	])
 
-func record_bounce(team_side: String) -> void:
+func ball_bounced(team_side: String) -> void:
 	"""Record a bounce for double-bounce tracking"""
 	if not serve_bounced:
 		# This is the serve bounce (already validated)
@@ -135,14 +135,19 @@ func record_bounce(team_side: String) -> void:
 	elif not return_bounced and consecutive_hits == 1:
 		# This is the return bounce (second required bounce)
 		return_bounced = true
-		double_bounce_complete = true
+		_double_bounce_done = true
 		emit_signal("double_bounce_complete")
 		print("Double-bounce rule satisfied!")
+
+func serve_landed_valid() -> void:
+	"""Called when serve lands in valid position"""
+	serve_bounced = true
+	is_serve_in_progress = false
 
 func can_volley(hitting_team: String, ball_height: float) -> bool:
 	"""Check if a volley (hitting before bounce) is allowed"""
 	# Cannot volley until double-bounce rule is satisfied
-	if not double_bounce_complete and ball_height > 10.0:
+	if not _double_bounce_done and ball_height > 10.0:
 		# Check which bounce we're waiting for
 		if consecutive_hits == 0:
 			# Receiver must let serve bounce
@@ -157,7 +162,7 @@ func can_volley(hitting_team: String, ball_height: float) -> bool:
 
 func check_double_bounce_violation(hitting_team: String, ball_has_bounced: bool) -> bool:
 	"""Check if hitting before required bounce"""
-	if double_bounce_complete:
+	if _double_bounce_done:
 		return false  # No violation possible after double-bounce complete
 
 	# First hit (serve return) - must let serve bounce first
@@ -172,7 +177,7 @@ func check_double_bounce_violation(hitting_team: String, ball_has_bounced: bool)
 
 func is_double_bounce_complete() -> bool:
 	"""Check if the double-bounce rule has been satisfied"""
-	return double_bounce_complete
+	return _double_bounce_done
 
 func get_state() -> Dictionary:
 	"""Get current state for debugging"""
@@ -181,6 +186,6 @@ func get_state() -> Dictionary:
 		"expected_service_box": expected_service_box,
 		"serve_bounced": serve_bounced,
 		"return_bounced": return_bounced,
-		"double_bounce_complete": double_bounce_complete,
+		"double_bounce_done": _double_bounce_done,
 		"consecutive_hits": consecutive_hits
 	}
