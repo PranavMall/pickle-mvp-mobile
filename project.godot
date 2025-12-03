@@ -1,40 +1,68 @@
 ; Engine configuration file.
-; It's best edited using the editor UI and not directly,
-; since the parameters that go here are not all obvious.
-;
-; Format:
-;   [section] ; section goes between []
-;   param=value ; assign values to parameters
+; Godot 4.4.1 - Pickleball Mobile MVP
+; Portrait mode 2v2 doubles pickleball game
 
 config_version=5
 
 [application]
 
-config/name="PickleballMobile"
-run/main_scene="uid://byl65os48dqts"
+config/name="Pickleball Doubles"
+config/description="The first authentic 2v2 pickleball mobile game with revolutionary kitchen mechanics"
+config/version="1.0.0"
+run/main_scene="res://scenes/menu/MainMenu.tscn"
 config/features=PackedStringArray("4.4", "Mobile")
+boot_splash/bg_color=Color(0.1, 0.15, 0.2, 1)
+boot_splash/show_image=false
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameManager="*res://scripts/autoload/GameManager.gd"
+AudioManager="*res://scripts/autoload/AudioManager.gd"
 
 [display]
 
-window/size/viewport_width=430
-window/size/viewport_height=932
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/size/resizable=false
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 window/handheld/orientation=1
+window/vsync/vsync_mode=1
 
 [input]
 
-serve={
+touch={
 "deadzone": 0.2,
-"events": [Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":0,"position":Vector2(0, 0),"global_position":Vector2(0, 0),"factor":1.0,"button_index":1,"canceled":false,"pressed":false,"double_click":false,"script":null)
+"events": []
+}
+ui_cancel={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":0,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":4194305,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 ]
 }
-swipe={
-"deadzone": 0.2,
-"events": [Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"button_mask":0,"position":Vector2(0, 0),"global_position":Vector2(0, 0),"factor":1.0,"button_index":1,"canceled":false,"pressed":false,"double_click":false,"script":null)
-]
-}
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
 
 [rendering]
 
 renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.1, 0.15, 0.2, 1)
+anti_aliasing/quality/msaa_2d=1
+
+[physics]
+
+2d/run_on_separate_thread=true
+
+[debug]
+
+gdscript/warnings/unused_parameter=0
+gdscript/warnings/unused_variable=0
+
+[android]
+
+modules/plugins=""
