@@ -207,7 +207,6 @@ func _ready() -> void:
 	# Initialize all systems - await to ensure completion
 	await get_tree().process_frame
 	await create_systems()
-	await create_swipe_detector()
 	create_player_team()
 
 	# Start game
@@ -407,32 +406,12 @@ func update_character_screen_position(character: CharacterBody2D, data: Dictiona
 		character.position = screen_pos
 
 # =================== SWIPE INPUT ===================
-func create_swipe_detector() -> void:
-	"""Create the swipe input detector"""
-	print("Creating SwipeDetector...")
-
-	var swipe_detector = Node2D.new()
-	swipe_detector.name = "SwipeDetector"
-	swipe_detector.z_index = 150
-	add_child(swipe_detector)
-
-	var swipe_script = load("res://SwipeDetector.gd")
-	if swipe_script:
-		print("SwipeDetector script loaded successfully")
-		swipe_detector.set_script(swipe_script)
-
-		# Wait a frame for _ready() to complete
-		await get_tree().process_frame
-
-		# Now connect signals
-		if swipe_detector.has_signal("swipe_completed"):
-			swipe_detector.swipe_completed.connect(_on_swipe_completed)
-			swipe_detector.swipe_started.connect(_on_swipe_started)
-			print("SwipeDetector signals connected!")
-		else:
-			push_error("SwipeDetector missing signals!")
-	else:
-		push_error("Failed to load SwipeDetector.gd!")
+# Connect SwipeDetector signals (it's already in the scene)
+	var swipe_detector = $SwipeDetector
+	if swipe_detector:
+		swipe_detector.swipe_completed.connect(_on_swipe_completed)
+		swipe_detector.swipe_started.connect(_on_swipe_started)
+		print("SwipeDetector signals connected!")
 
 func _on_swipe_started() -> void:
 	"""Handle swipe start"""

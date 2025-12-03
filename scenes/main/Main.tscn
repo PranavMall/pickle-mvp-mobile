@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://byl65os48dqts"]
+[gd_scene load_steps=9 format=3 uid="uid://byl65os48dqts"]
 
 [ext_resource type="Script" uid="uid://bwy0hr6tmfm0k" path="res://scenes/main/Main.gd" id="1_u1xfj"]
 [ext_resource type="Script" uid="uid://cdjp4nco1o7et" path="res://courts/Court.gd" id="2_nha0i"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://bfa4khpy4xblw" path="res://UI/UISetup.gd" id="3_q24mn"]
 [ext_resource type="Script" uid="uid://dei25affa53a5" path="res://scripts/systems/KitchenButton.gd" id="5_1rhdn"]
 [ext_resource type="Script" uid="uid://b5uqmpcfxwrre" path="res://scripts/systems/MasteryButton.gd" id="6_sjxhf"]
+[ext_resource type="Script" uid="uid://8tmd04kv5ksq" path="res://SwipeDetector.gd" id="7_sjxhf"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_dc040"]
 radius = 8.0
@@ -140,3 +141,6 @@ offset_right = 4.0
 offset_bottom = 27.0
 
 [node name="GameManager" type="Node" parent="."]
+
+[node name="SwipeDetector" type="Node2D" parent="."]
+script = ExtResource("7_sjxhf")
