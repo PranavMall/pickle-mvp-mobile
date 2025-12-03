@@ -42,14 +42,12 @@ signal crossed_net()
 signal serve_bounced(pos, in_correct_box)
 
 func _ready() -> void:
-	print("Ball._ready() called")
-
 	await get_tree().process_frame
 
 	if not main:
 		main = get_node("/root/Main")
 		if not main:
-			print("ERROR: Cannot find Main node!")
+			push_error("Cannot find Main node!")
 			return
 
 	create_ball_textures()
@@ -74,8 +72,6 @@ func _ready() -> void:
 		trail_line.clear_points()
 		trail_line.top_level = true
 		trail_points.clear()
-
-	print("Ball ready - waiting for player swipe!")
 
 func create_ball_textures() -> void:
 	if sprite and not sprite.texture:
@@ -159,8 +155,6 @@ func execute_bounce() -> void:
 	var court_pos = screen_to_court(position)
 	var bounce_side = "player" if court_pos.y > main.NET_Y else "opponent"
 
-	print("Ball bounced at court position: ", court_pos, " Side: ", bounce_side)
-
 	# Store bounce position
 	bounce_positions.append({
 		"pos": position,
@@ -194,7 +188,6 @@ func execute_bounce() -> void:
 		if court_pos.y >= main.NET_Y and court_pos.y <= main.KITCHEN_LINE_BOTTOM:
 			if main.kitchen_system:
 				main.kitchen_system.trigger_opportunity()
-				print("Kitchen opportunity triggered!")
 
 	# Track first bounce for double-bounce rule
 	if bounces == 1 and main.service_rules:
@@ -213,7 +206,6 @@ func execute_bounce() -> void:
 		if (last_hit_team == "player" and bounce_side == "player") or \
 		   (last_hit_team == "opponent" and bounce_side == "opponent"):
 			main.show_message("Own Court!", court_pos.x, court_pos.y, Color(1.0, 0.26, 0.21))
-			print("FAULT: Ball bounced on own side!")
 			AudioManager.play_fault()
 			stop_ball()
 			main.fault_occurred(last_hit_team)
@@ -328,7 +320,6 @@ func check_boundaries() -> void:
 			fault_team = last_hit_team if last_hit_team else "player"
 			main.show_message(fault_message, court_pos.x, court_pos.y, Color(1.0, 0.26, 0.21))
 
-		print("BALL OUT: ", fault_message, " at court position: ", court_pos)
 		AudioManager.play_fault()
 		stop_ball()
 		main.fault_occurred(fault_team)
@@ -349,8 +340,6 @@ func screen_to_court(screen_pos: Vector2) -> Vector2:
 	return Vector2(court_x, court_y)
 
 func receive_serve(angle: float, power: float) -> void:
-	print("Ball receiving serve - Angle: ", angle, " Power: ", power)
-
 	# Mark as serve ball for validation
 	is_serve_ball = true
 	serve_has_bounced = false
@@ -384,18 +373,13 @@ func receive_serve(angle: float, power: float) -> void:
 
 	trail_points.clear()
 
-	print("Serve launched with velocity: ", velocity, " Vertical: ", vertical_velocity)
-
 func receive_hit(angle: float, power: float, shot_type: String) -> void:
-	print("Ball received hit - Angle: ", angle, " Power: ", power, " Type: ", shot_type)
-
 	# Clear serve state
 	is_serve_ball = false
 
 	# IMPORTANT: Prevent hitting ball that hasn't bounced yet after serve
 	if main.service_rules and not main.service_rules.is_double_bounce_complete():
 		if main.game_state.consecutive_hits < 2 and bounces == 0:
-			print("WARNING: Must let ball bounce on serve/return!")
 			return
 
 	var base_speed: float = 220.0
@@ -436,8 +420,6 @@ func receive_hit(angle: float, power: float, shot_type: String) -> void:
 	main.game_state.consecutive_hits += 1
 
 	trail_points.clear()
-
-	print("Ball launched with velocity: ", velocity, " Vertical: ", vertical_velocity)
 
 func receive_opponent_hit(angle: float, power: float, shot_type: String) -> void:
 	"""Handle opponent hitting the ball"""
@@ -505,8 +487,6 @@ func stop_ball() -> void:
 
 	var start_pos = main.court_to_screen(main.COURT_WIDTH / 2.0, main.COURT_HEIGHT - 100)
 	global_position = start_pos
-
-	print("Ball stopped - Ready for next serve")
 
 func reset_for_point() -> void:
 	"""Reset ball state for a new point"""

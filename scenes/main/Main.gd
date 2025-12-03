@@ -6,7 +6,7 @@ extends Node2D
 # Court dimensions (from prototype)
 const COURT_WIDTH: float = 280.0
 const COURT_HEIGHT: float = 560.0
-const COURT_OFFSET_Y: float = 60.0
+const COURT_OFFSET_Y: float = 25.0  # Reduced for fuller screen coverage
 const PERSPECTIVE_SCALE: float = 0.75
 const PERSPECTIVE_ANGLE: float = 10.0
 
@@ -196,7 +196,10 @@ var opponent2_data: Dictionary = {
 func _ready() -> void:
 	screen_width = get_viewport().size.x
 	screen_height = get_viewport().size.y
-	court_scale = min(screen_width / COURT_WIDTH, screen_height / (COURT_HEIGHT + COURT_OFFSET_Y * 2))
+	# Use a larger scale to fill more of the screen - prioritize height for portrait mode
+	var width_scale = screen_width / COURT_WIDTH
+	var height_scale = screen_height / (COURT_HEIGHT + COURT_OFFSET_Y * 0.5)  # Reduced offset for fuller screen
+	court_scale = min(width_scale, height_scale) * 0.95  # Fill 95% of available space
 
 	print("=== PICKLEBALL DOUBLES MVP ===")
 	print("Screen: %dx%d, Court scale: %.2f" % [int(screen_width), int(screen_height), court_scale])
@@ -433,8 +436,28 @@ func _on_swipe_completed(angle: float, power: float, shot_type: String) -> void:
 	# Hit during rally
 	if game_state.ball_in_play:
 		var ball = get_node_or_null("Ball")
-		if ball and player_data.can_hit:
+		if not ball:
+			return
+
+		# Check if player or partner can hit
+		if player_data.can_hit:
 			attempt_player_hit(ball, angle, power, shot_type)
+		elif partner_data.can_hit and ball.last_hit_team == "opponent":
+			# Let partner AI handle it if they're in position
+			pass
+		else:
+			# Even if not perfectly in range, try to hit if reasonably close
+			var ball_court_pos = ball.screen_to_court(ball.global_position) if ball.has_method("screen_to_court") else Vector2.ZERO
+			var player_screen_pos = court_to_screen(player_data.court_x, player_data.court_y)
+			var screen_dist = player_screen_pos.distance_to(ball.global_position)
+
+			# Allow hit if within extended range and ball is on our side and from opponent
+			var extended_hit_dist = HIT_DISTANCE * 2.0  # 160 pixels for swipe leniency
+			if screen_dist < extended_hit_dist and \
+			   ball_court_pos.y > NET_Y - 30 and \
+			   ball.in_flight and \
+			   ball.last_hit_team == "opponent":
+				attempt_player_hit(ball, angle, power, shot_type)
 
 # =================== SERVING ===================
 func player_serve_with_swipe(angle: float, power: float) -> void:
@@ -603,18 +626,27 @@ func update_player_movement(delta: float) -> void:
 func update_player_position(data: Dictionary, ball: Node2D, ball_court_pos: Vector2, delta: float, is_player: bool) -> void:
 	"""Update a player's court position"""
 	var ball_on_our_side = ball_court_pos.y > NET_Y
+	var ball_coming_to_us = ball.velocity.y > 0  # Positive Y means moving toward player side
 	var speed = (PLAYER_SPEED if is_player else PARTNER_SPEED) * delta
 
 	if game_state.kitchen_mastery and is_player:
 		speed *= 1.3
 
-	if ball_on_our_side and should_cover_ball(data, ball_court_pos):
-		var time_to_reach = calculate_time_to_reach(data, ball_court_pos, ball)
-		var predicted_x = ball_court_pos.x + ball.velocity.x * time_to_reach * 0.0005
-		var predicted_y = ball_court_pos.y + ball.velocity.y * time_to_reach * 0.0005
+	# Move to intercept when ball is on our side OR coming to us
+	var should_intercept = ball_on_our_side or (ball_coming_to_us and ball.last_hit_team == "opponent")
 
-		predicted_x = clamp(predicted_x, 20, COURT_WIDTH - 20)
-		predicted_y = clamp(predicted_y, NET_Y + 10, BASELINE_BOTTOM - 10)
+	if should_intercept and should_cover_ball(data, ball_court_pos):
+		# Better prediction using ball trajectory
+		var time_to_land = 0.0
+		if ball.vertical_velocity != 0:
+			time_to_land = (ball.height + ball.vertical_velocity / GRAVITY) / 50.0
+		time_to_land = max(time_to_land, 0.3)
+
+		var predicted_x = ball_court_pos.x + ball.velocity.x * time_to_land * 0.004
+		var predicted_y = ball_court_pos.y + ball.velocity.y * time_to_land * 0.004
+
+		predicted_x = clamp(predicted_x, 30, COURT_WIDTH - 30)
+		predicted_y = clamp(predicted_y, NET_Y + 20, BASELINE_BOTTOM - 20)
 
 		if is_player and kitchen_system and kitchen_system.current_state == 2:
 			data.target_court_y = clamp(predicted_y, NET_Y + 10, KITCHEN_LINE_BOTTOM - 5)
@@ -671,10 +703,13 @@ func check_hit_opportunity(character: CharacterBody2D, data: Dictionary, ball: N
 	var screen_dist = character.global_position.distance_to(ball.global_position)
 	var time_since_hit = Time.get_ticks_msec() - data.last_hit_time
 
-	data.can_hit = screen_dist < HIT_DISTANCE and \
-				   ball.height < 40 and \
-				   ball.height > 0 and \
-				   ball_court_pos.y > NET_Y - 10 and \
+	# More lenient hit detection for better gameplay
+	var hit_dist = HIT_DISTANCE * 1.3  # Slightly larger hit zone (104 pixels)
+
+	data.can_hit = screen_dist < hit_dist and \
+				   ball.height < 50 and \
+				   ball.height >= 0 and \
+				   ball_court_pos.y > NET_Y - 20 and \
 				   ball.in_flight and \
 				   time_since_hit > HIT_COOLDOWN * 1000 and \
 				   ball.last_hit_team == "opponent"
@@ -708,25 +743,40 @@ func update_opponents(delta: float, ball: Node2D) -> void:
 	"""Update opponent AI movement and hitting"""
 	var ball_court_pos = ball.screen_to_court(ball.global_position) if ball.has_method("screen_to_court") else Vector2.ZERO
 	var ball_on_their_side = ball_court_pos.y < NET_Y
+	var ball_coming_to_them = ball.velocity.y < 0  # Negative Y means moving toward opponent side
 
 	for opp_data in [opponent1_data, opponent2_data]:
-		if ball_on_their_side:
-			# Move to intercept
-			var predicted_x = ball_court_pos.x + ball.velocity.x * 0.001
-			predicted_x = clamp(predicted_x, 20, COURT_WIDTH - 20)
+		# Opponents should move to intercept when ball is coming to them OR on their side
+		if ball_on_their_side or (ball_coming_to_them and ball.last_hit_team == "player"):
+			# Calculate where ball will land based on trajectory
+			var time_to_land = 0.0
+			if ball.vertical_velocity != 0:
+				# Estimate time for ball to reach ground (simplified)
+				time_to_land = (ball.height + ball.vertical_velocity / GRAVITY) / 50.0
+			time_to_land = max(time_to_land, 0.3)  # At least 0.3 seconds prediction
 
-			if should_opponent_cover(opp_data, ball_court_pos):
+			# Predict ball landing position
+			var predicted_x = ball_court_pos.x + ball.velocity.x * time_to_land * 0.005
+			var predicted_y = ball_court_pos.y + ball.velocity.y * time_to_land * 0.005
+
+			predicted_x = clamp(predicted_x, 30, COURT_WIDTH - 30)
+			predicted_y = clamp(predicted_y, BASELINE_TOP + 30, KITCHEN_LINE_TOP + 30)
+
+			if should_opponent_cover(opp_data, Vector2(predicted_x, predicted_y)):
 				opp_data.target_court_x = predicted_x
-				opp_data.target_court_y = clamp(ball_court_pos.y - 15, BASELINE_TOP + 20, KITCHEN_LINE_TOP - 10)
+				# Move forward to intercept, stay behind kitchen line
+				opp_data.target_court_y = clamp(predicted_y + 10, BASELINE_TOP + 30, KITCHEN_LINE_TOP - 5)
 			else:
+				# Move to cover position
 				opp_data.target_court_x = opp_data.default_x
-				opp_data.target_court_y = opp_data.default_y
+				opp_data.target_court_y = min(predicted_y + 30, KITCHEN_LINE_TOP - 5)
 		else:
+			# Return to default position when ball is on player's side
 			opp_data.target_court_x = opp_data.default_x
 			opp_data.target_court_y = opp_data.default_y
 
-		# Move opponent
-		var speed = OPPONENT_SPEED * delta
+		# Move opponent with increased speed
+		var speed = OPPONENT_SPEED * 1.3 * delta  # 30% faster for better interception
 		var dx = opp_data.target_court_x - opp_data.court_x
 		var dy = opp_data.target_court_y - opp_data.court_y
 		var dist = sqrt(dx*dx + dy*dy)
@@ -738,6 +788,7 @@ func update_opponents(delta: float, ball: Node2D) -> void:
 			opp_data.court_x = opp_data.target_court_x
 			opp_data.court_y = opp_data.target_court_y
 
+		# Keep opponents behind kitchen line
 		opp_data.court_y = min(opp_data.court_y, KITCHEN_LINE_TOP - 5)
 
 		# Check hit opportunity
@@ -752,15 +803,19 @@ func should_opponent_cover(opp_data: Dictionary, ball_pos: Vector2) -> bool:
 
 func check_opponent_hit(opp_data: Dictionary, ball: Node2D, ball_court_pos: Vector2, delta: float) -> void:
 	"""Check and execute opponent hit"""
-	var dx = ball_court_pos.x - opp_data.court_x
-	var dy = ball_court_pos.y - opp_data.court_y
-	var dist = sqrt(dx*dx + dy*dy)
+	# Use screen distance for consistency with player hit detection
+	var opp_screen_pos = court_to_screen(opp_data.court_x, opp_data.court_y)
+	var screen_dist = opp_screen_pos.distance_to(ball.global_position)
 	var time_since_hit = Time.get_ticks_msec() - opp_data.last_hit_time
 
+	# More lenient hit distance for opponents to ensure they can return
+	var hit_dist = HIT_DISTANCE * 1.5  # 120 pixels for more reliable returns
+
 	# Check if opponent can hit (ball is close enough, on their side, bounced, from player)
-	opp_data.can_hit = dist < HIT_DISTANCE and \
-					   ball.height < 50 and \
-					   ball_court_pos.y < NET_Y and \
+	opp_data.can_hit = screen_dist < hit_dist and \
+					   ball.height < 60 and \
+					   ball.height >= 0 and \
+					   ball_court_pos.y < NET_Y + 20 and \
 					   ball.in_flight and \
 					   time_since_hit > HIT_COOLDOWN * 1000 and \
 					   ball.bounces > 0 and \
