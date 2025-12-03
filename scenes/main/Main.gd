@@ -165,6 +165,7 @@ var opponent1_data: Dictionary = {
 	"feet_established": true,
 	"momentum_timer": 0.0,
 	"volley_position": Vector2.ZERO,
+	"establishment_timer": 0.0,
 	"is_serving": false,
 	"is_opponent": true,
 	"name": "Opponent1"
@@ -185,6 +186,7 @@ var opponent2_data: Dictionary = {
 	"feet_established": true,
 	"momentum_timer": 0.0,
 	"volley_position": Vector2.ZERO,
+	"establishment_timer": 0.0,
 	"is_serving": false,
 	"is_opponent": true,
 	"name": "Opponent2"
@@ -755,15 +757,17 @@ func check_opponent_hit(opp_data: Dictionary, ball: Node2D, ball_court_pos: Vect
 	var dist = sqrt(dx*dx + dy*dy)
 	var time_since_hit = Time.get_ticks_msec() - opp_data.last_hit_time
 
-	opp_data.can_hit = dist < HIT_DISTANCE/2 and \
-					   ball.height < 40 and \
+	# Check if opponent can hit (ball is close enough, on their side, bounced, from player)
+	opp_data.can_hit = dist < HIT_DISTANCE and \
+					   ball.height < 50 and \
 					   ball_court_pos.y < NET_Y and \
 					   ball.in_flight and \
 					   time_since_hit > HIT_COOLDOWN * 1000 and \
 					   ball.bounces > 0 and \
 					   ball.last_hit_team == "player"
 
-	if opp_data.can_hit and randf() < 0.02:
+	# High chance to hit when in range - opponents are skilled!
+	if opp_data.can_hit:
 		execute_opponent_hit(opp_data, ball)
 
 func execute_ai_hit(data: Dictionary, ball: Node2D, shot_type: String) -> void:
