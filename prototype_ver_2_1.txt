@@ -1,0 +1,2740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Pickleball Doubles Portrait - Enhanced Kitchen System</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            max-width: 430px;
+            height: 100vh;
+            max-height: 932px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 30%, #6B8E6B 30%, #4A5D4E 100%);
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        /* Top HUD - Compact */
+        #topHUD {
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            right: 10px;
+            height: 35px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        .score-display {
+            color: #FFD700;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .game-info {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .server-indicator {
+            color: #4CAF50;
+            font-size: 11px;
+        }
+        
+        .violations {
+            color: #FF9800;
+            font-size: 10px;
+        }
+        
+        /* Enhanced Kitchen Button */
+        #kitchenButton {
+            position: absolute;
+            right: 15px;
+            bottom: 100px;
+            width: 70px;
+            height: 70px;
+            background: #666;
+            border: 3px solid black;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.3s;
+            z-index: 100;
+            flex-direction: column;
+        }
+        
+        #kitchenButton.available {
+            background: #FFD600;
+            animation: pulse 1s infinite;
+            box-shadow: 0 0 15px rgba(255, 214, 0, 0.6);
+        }
+        
+        #kitchenButton.active {
+            background: #4CAF50;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
+        }
+        
+        #kitchenButton.must_exit {
+            background: #FF9800;
+            animation: pulse 0.5s infinite;
+        }
+        
+        #kitchenButton.warning {
+            background: #F44336;
+            animation: flash 0.3s infinite;
+        }
+        
+        #kitchenButton.cooldown {
+            background: #999;
+            opacity: 0.6;
+        }
+        
+        .kitchen-timer {
+            font-size: 10px;
+            color: white;
+            margin-top: 2px;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes flash {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* Kitchen Pressure Bar */
+        #kitchenPressure {
+            position: absolute;
+            left: 15px;
+            bottom: 100px;
+            width: 60px;
+            height: 120px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #FFD700;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 5px;
+            z-index: 100;
+        }
+        
+        .pressure-label {
+            color: #FFD700;
+            font-size: 10px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .pressure-bar-container {
+            width: 40px;
+            height: 80px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #FFD700;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pressure-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, #FF5722, #FFEB3B, #4CAF50);
+            transition: height 0.3s;
+        }
+        
+        .pressure-value {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            font-size: 13px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-weight: 500;
+            z-index: 100;
+            max-width: 75%;
+        }
+        
+        #powerIndicator {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 20px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid white;
+            border-radius: 12px;
+            display: none;
+            overflow: hidden;
+            z-index: 100;
+        }
+        
+        #powerBar {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #FFEB3B, #FF5722);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+        
+        #debugInfo {
+            position: absolute;
+            top: 45px;
+            right: 10px;
+            color: white;
+            font-size: 9px;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            z-index: 100;
+            line-height: 1.3;
+        }
+        
+        #ruleViolation {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #F44336;
+            font-size: 18px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.9);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 2px solid #F44336;
+            display: none;
+            z-index: 200;
+            text-align: center;
+        }
+        
+        .establishment-indicator {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 152, 0, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+            display: none;
+            z-index: 100;
+        }
+      
+      @keyframes glow {
+        0% { box-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700; }
+        50% { box-shadow: 0 0 20px #FFD700, 0 0 30px #FFD700; }
+        100% { box-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700; }
+    }
+    
+    #masteryButton.ready {
+        animation: glow 1.5s infinite;
+        cursor: pointer;
+        border-color: #FFD700;
+    }
+    
+    #masteryButton.ready #masteryIcon {
+        animation: pulse 1s infinite;
+    }
+    
+    #masteryButton.active {
+        background: radial-gradient(circle, #FFD700, #FFA500);
+        border-color: #FFF;
+        animation: rotate 2s linear infinite;
+    }
+    
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+      
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Enhanced HUD -->
+        <div id="topHUD">
+            <div class="score-display">
+                <span id="playerScore">0</span>-<span id="opponentScore">0</span>-<span id="serverNumber">2</span>
+            </div>
+            <div class="game-info">
+                <div class="server-indicator">
+                    <span id="servingTeam">You</span>
+                </div>
+                <div style="color: #AAA; font-size: 11px;">
+                    R:<span id="rallyCount">0</span>
+                </div>
+                <div class="violations">
+                    KV:<span id="violationCount">0</span>
+                </div>
+            </div>
+        </div>
+        
+        
+        <!-- Enhanced Kitchen Button -->
+        <div id="kitchenButton">
+            <span id="kitchenText">K</span>
+            <span class="kitchen-timer" id="kitchenTimer"></span>
+        </div>
+      
+      <!-- Enhanced Mastery Button with integrated pressure -->
+<div id="masteryButton" style="
+    position: absolute;
+    left: 15px;
+    bottom: 100px;
+    width: 70px;
+    height: 70px;
+    background: #333;
+    border: 3px solid #FFD700;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;
+    overflow: hidden;
+    position: relative;
+">
+    <!-- Pressure fill background -->
+    <div id="masteryFill" style="
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 0%;
+        background: linear-gradient(to top, #FF5722, #FFEB3B, #4CAF50);
+        transition: height 0.3s ease;
+        z-index: 1;
+    "></div>
+    
+    <!-- Content on top -->
+    <div style="
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    ">
+        <div id="masteryIcon" style="
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        ">âš¡</div>
+        <div id="masteryPercent" style="
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        ">0%</div>
+    </div>
+</div>
+      
+        
+        <div id="instructions">Waiting to start...</div>
+        <div id="powerIndicator">
+            <div id="powerBar"></div>
+        </div>
+        <div id="debugInfo"></div>
+        <div id="ruleViolation"></div>
+        <div class="establishment-indicator" id="establishmentIndicator">Must Establish!</div>
+    </div>
+
+    <script>
+        // Game setup - KEEPING YOUR ORIGINAL STRUCTURE
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Portrait mode sizing - YOUR ORIGINAL
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Game Constants - YOUR ORIGINAL VALUES
+        const COURT_WIDTH = 280;
+        const COURT_HEIGHT = 560;
+        const COURT_OFFSET_Y = 60;
+        const PERSPECTIVE_ANGLE = 10;
+        const PERSPECTIVE_SCALE = 0.75;
+        
+        // Adjusted game constants - YOUR ORIGINAL
+        const KITCHEN_DEPTH = 70;
+        const NET_Y = COURT_HEIGHT / 2;
+        const BASELINE_OFFSET = 0;
+        const SERVICE_LINE_DEPTH = 90;
+        const PLAYER_SPEED = 180;
+        const BALL_RADIUS = 8;
+        const GRAVITY = 160;
+        const HIT_DISTANCE = 60;
+        const HIT_COOLDOWN = 800;
+        
+        // Kitchen lines - YOUR ORIGINAL
+        const KITCHEN_LINE_TOP = NET_Y - KITCHEN_DEPTH;
+        const KITCHEN_LINE_BOTTOM = NET_Y + KITCHEN_DEPTH;
+        
+        // Baselines - YOUR ORIGINAL
+        const BASELINE_TOP = 30;
+        const BASELINE_BOTTOM = COURT_HEIGHT - 30;
+        
+        // Kitchen States Enum - ENHANCEMENT
+        const KitchenStates = {
+            DISABLED: 'disabled',
+            AVAILABLE: 'available',
+            ACTIVE: 'active',
+            MUST_EXIT: 'must_exit',
+            WARNING: 'warning',
+            COOLDOWN: 'cooldown'
+        };
+        
+        // Visual court boundaries for perspective - YOUR ORIGINAL
+        function getVisualCourtBounds(y) {
+            const perspectiveFactor = 1 - (1 - PERSPECTIVE_SCALE) * (1 - y / COURT_HEIGHT);
+            const visualWidth = COURT_WIDTH * perspectiveFactor;
+            const leftBound = (COURT_WIDTH - visualWidth) / 2;
+            const rightBound = COURT_WIDTH - leftBound;
+            return { left: leftBound, right: rightBound, width: visualWidth };
+        }
+        
+        // Enhanced game state - YOUR ORIGINAL + KITCHEN ENHANCEMENTS
+        let gameState = {
+            playerScore: 0,
+            opponentScore: 0,
+            servingTeam: 'player',
+            serverNumber: 2,
+            rallyCount: 0,
+            consecutiveHits: 0,
+          rallyLength: 0,
+            
+            // Enhanced kitchen states
+            kitchenState: KitchenStates.DISABLED,
+            kitchenStateTimer: 0,
+            inKitchen: false,
+            
+            // Kitchen violations tracking
+            kitchenViolations: {
+                player: 0,
+                opponent: 0
+            },
+            kitchenFlash: null,
+            
+            // Kitchen pressure system
+            kitchenPressure: 0,
+            kitchenPressureMax: 100,
+            kitchenMastery: false,
+            kitchenMasteryTimer: 0,
+            
+            // Dink tracking
+            isDinkRally: false,
+            dinkCount: 0,
+            
+            gameActive: false,
+            ballInPlay: false,
+            firstBounceComplete: false,
+            secondBounceComplete: false,
+            waitingForServe: false,
+            canServe: false,
+            isFirstServeOfGame: true,
+            currentServer: null,
+            lastBounceTeam: null,
+            bouncesOnCurrentSide: 0,
+            isServeInProgress: false,
+            expectedServiceBox: null
+        };
+        
+        // Enhanced players - YOUR ORIGINAL + KITCHEN TRACKING
+        const player = {
+            x: 0, y: 0, targetX: 0, targetY: 0,
+            canHit: false, speed: PLAYER_SPEED,
+            
+            // Enhanced kitchen tracking
+            inKitchen: false,
+            wasInKitchen: false,
+            momentumTimer: 0,
+            volleyPosition: null,
+            feetEstablished: true,
+            kitchenEntryTime: 0,
+            establishmentTimer: 0,
+            
+            courtSide: 'right',
+            isServing: false,
+            isServer1: true,
+            lastHitTime: 0,
+            name: 'You',
+            size: 18,
+            
+            // Dink abilities
+            dinkAccuracy: 0.8,
+            kitchenSpeed: 1.0
+        };
+        
+        const partner = {
+            x: 0, y: 0, targetX: 0, targetY: 0,
+            skill: 0.8, speed: PLAYER_SPEED * 0.95,
+            
+            // Kitchen tracking for AI
+            inKitchen: false,
+            wasInKitchen: false,
+            momentumTimer: 0,
+            volleyPosition: null,
+            feetEstablished: true,
+            shouldEnterKitchen: false,
+            kitchenTimer: 0,
+            preparingDink: false,
+            
+            courtSide: 'left',
+            isServing: false,
+            isServer2: true,
+            canHit: false,
+            lastHitTime: 0,
+            hitCooldown: HIT_COOLDOWN,
+            name: 'Partner',
+            size: 18
+        };
+        
+        const opponent1 = {
+            x: 0, y: 0, speed: PLAYER_SPEED * 0.9,
+            skill: 0.75,
+            
+            // Kitchen tracking for AI
+            inKitchen: false,
+            wasInKitchen: false,
+            momentumTimer: 0,
+            volleyPosition: null,
+            feetEstablished: true,
+            shouldEnterKitchen: false,
+            kitchenTimer: 0,
+            preparingDink: false,
+            exitingKitchen: false,
+            
+            courtSide: 'right',
+            isServing: false,
+            isServer1: true,
+            canHit: false,
+            lastHitTime: 0,
+            hitCooldown: HIT_COOLDOWN,
+            name: 'Opp1',
+            size: 18
+        };
+        
+        const opponent2 = {
+            x: 0, y: 0, speed: PLAYER_SPEED * 0.9,
+            skill: 0.75,
+            
+            // Kitchen tracking for AI
+            inKitchen: false,
+            wasInKitchen: false,
+            momentumTimer: 0,
+            volleyPosition: null,
+            feetEstablished: true,
+            shouldEnterKitchen: false,
+            kitchenTimer: 0,
+            preparingDink: false,
+            exitingKitchen: false,
+            
+            courtSide: 'left',
+            isServing: false,
+            isServer2: true,
+            canHit: false,
+            lastHitTime: 0,
+            hitCooldown: HIT_COOLDOWN,
+            name: 'Opp2',
+            size: 18
+        };
+        
+        // Ball - YOUR ORIGINAL
+        const ball = {
+            x: COURT_WIDTH / 2, y: COURT_HEIGHT / 2,
+            vx: 0, vy: 0, height: 0, vz: 0,
+            trail: [], lastHitBy: null,
+            lastHitTeam: null, bounces: 0,
+            bouncePositions: [], inFlight: false,
+            speed: 0
+        };
+        
+        // Messages - YOUR ORIGINAL
+        let messages = [];
+        
+        // YOUR ORIGINAL FUNCTIONS - KEEPING EVERYTHING AS IS
+        function getCourtScreenPosition() {
+            const centerX = canvas.width / 2;
+            const courtTop = COURT_OFFSET_Y;
+            return { centerX, courtTop };
+        }
+        
+        function courtToScreen(x, y) {
+            const { centerX, courtTop } = getCourtScreenPosition();
+            
+            const perspectiveFactor = 1 - (1 - PERSPECTIVE_SCALE) * (1 - y / COURT_HEIGHT);
+            const visualBounds = getVisualCourtBounds(y);
+            
+            const normalizedX = x / COURT_WIDTH;
+            const visualX = visualBounds.left + normalizedX * visualBounds.width;
+            
+            const screenX = centerX + (visualX - COURT_WIDTH / 2) * perspectiveFactor;
+            const screenY = courtTop + y * 0.9;
+            
+            return { x: screenX, y: screenY };
+        }
+        
+        function showMessage(text, x, y, color, duration = 60) {
+            const screenPos = courtToScreen(x, y);
+            messages.push({ 
+                text, 
+                x: screenPos.x, 
+                y: screenPos.y, 
+                color, 
+                life: duration, 
+                vy: -2 
+            });
+        }
+        
+        function showRuleViolation(text) {
+            const elem = document.getElementById('ruleViolation');
+            elem.textContent = text;
+            elem.style.display = 'block';
+            setTimeout(() => { elem.style.display = 'none'; }, 2000);
+        }
+        
+        // ENHANCED Kitchen Violation Detection
+        function checkComprehensiveKitchenViolation(hitter) {
+            // Priority 1: Direct volley in kitchen
+            if (hitter.inKitchen && ball.height > 0) {
+                return {
+                    type: 'VOLLEY_IN_KITCHEN',
+                    message: 'Kitchen Violation: Cannot volley in kitchen!',
+                    severe: true
+                };
+            }
+            
+            // Priority 2: Touching kitchen line during volley
+            if (!hitter.inKitchen && ball.height > 0) {
+                const isPlayerTeam = (hitter === player || hitter === partner);
+                const kitchenLine = isPlayerTeam ? KITCHEN_LINE_BOTTOM : KITCHEN_LINE_TOP;
+                const distToKitchenLine = Math.abs(hitter.y - kitchenLine);
+                
+                if (distToKitchenLine < 5) {
+                    return {
+                        type: 'LINE_FAULT',
+                        message: 'Kitchen Violation: Touched line during volley!',
+                        severe: true
+                    };
+                }
+            }
+            
+            // Priority 3: Not re-established after being in kitchen
+            if (hitter.wasInKitchen && !hitter.feetEstablished && ball.height > 0) {
+                return {
+                    type: 'NOT_ESTABLISHED',
+                    message: 'Kitchen Violation: Must establish both feet outside!',
+                    severe: true
+                };
+            }
+            
+            return null;
+        }
+        
+        // ENHANCED Handle kitchen violations
+        function handleKitchenViolation(violation, violator) {
+            const isPlayerTeam = (violator === player || violator === partner);
+            const faultingTeam = isPlayerTeam ? 'player' : 'opponent';
+            
+            showRuleViolation(violation.message);
+            showMessage('FAULT!', violator.x, violator.y - 40, '#FF0000', 90);
+            
+            flashKitchenZone(isPlayerTeam);
+            
+            gameState.kitchenViolations[faultingTeam]++;
+            
+            // Update pressure
+            if (isPlayerTeam) {
+                updateKitchenPressure(-20);
+            } else {
+                updateKitchenPressure(10);
+            }
+            
+            faultOccurred(faultingTeam);
+            
+            if (isPlayerTeam) {
+                gameState.kitchenState = KitchenStates.COOLDOWN;
+                gameState.kitchenStateTimer = 3.0;
+                gameState.inKitchen = false;
+                player.inKitchen = false;
+                player.wasInKitchen = false;
+                player.feetEstablished = true;
+                updateKitchenButton();
+            }
+        }
+        
+        // ENHANCED Check momentum violations
+        function checkMomentumViolations(dt) {
+            [player, partner, opponent1, opponent2].forEach(person => {
+                if (person.momentumTimer > 0) {
+                    person.momentumTimer -= dt;
+                    
+                    if (person.inKitchen && person.volleyPosition) {
+                        const timeSinceVolley = 1.5 - person.momentumTimer;
+                        if (timeSinceVolley < 1.0) {
+                            handleKitchenViolation({
+                                type: 'MOMENTUM_CARRY',
+                                message: 'Momentum Violation: Carried into kitchen!',
+                                severe: true
+                            }, person);
+                            person.momentumTimer = 0;
+                            person.volleyPosition = null;
+                        }
+                    }
+                    
+                    if (person.momentumTimer <= 0) {
+                        person.volleyPosition = null;
+                    }
+                }
+            });
+        }
+        
+        // ENHANCED Kitchen pressure system
+        function updateKitchenPressure(amount) {
+    gameState.kitchenPressure = Math.max(0, 
+        Math.min(gameState.kitchenPressureMax, 
+                 gameState.kitchenPressure + amount));
+    
+    const fillPercent = (gameState.kitchenPressure / gameState.kitchenPressureMax) * 100;
+          // Update the mastery button instead of old pressure bar
+          updateMasteryButton(fillPercent);
+}
+      
+      // NEW function to update mastery button appearance
+function updateMasteryButton(fillPercent) {
+    const button = document.getElementById('masteryButton');
+    const fill = document.getElementById('masteryFill');
+    const percentText = document.getElementById('masteryPercent');
+    const icon = document.getElementById('masteryIcon');
+    
+    // Update fill height
+    fill.style.height = fillPercent + '%';
+    
+    // Update percentage text
+    percentText.textContent = Math.floor(fillPercent) + '%';
+    
+    // Update button state
+    if (fillPercent >= 100) {
+        button.classList.add('ready');
+        percentText.textContent = 'READY!';
+        icon.textContent = 'â­';
+        button.onclick = activateKitchenMastery;
+        
+        // Show hint first time
+        if (!gameState.masteryHintShown) {
+            showMessage('Tap â­ to activate!', COURT_WIDTH/2, NET_Y, '#FFD700', 60);
+            gameState.masteryHintShown = true;
+        }
+    } else {
+        button.classList.remove('ready');
+        icon.textContent = 'âš¡';
+        button.onclick = null;
+        
+        // Change icon based on progress
+        if (fillPercent >= 75) {
+            icon.textContent = 'ðŸ”¥';
+        } else if (fillPercent >= 50) {
+            icon.textContent = 'âš¡';
+        } else if (fillPercent >= 25) {
+            icon.textContent = 'ðŸ’«';
+        }
+    }
+    
+    // During mastery mode
+    if (gameState.kitchenMastery) {
+        button.classList.add('active');
+        icon.textContent = 'ðŸ‘‘';
+        percentText.textContent = gameState.kitchenMasteryTimer.toFixed(1) + 's';
+    } else {
+        button.classList.remove('active');
+    }
+}
+        
+        function activateKitchenMastery() {
+    if (gameState.kitchenPressure < gameState.kitchenPressureMax) return;
+    
+    gameState.kitchenMastery = true;
+    gameState.kitchenMasteryTimer = 8.0; // Changed from 5 to 10 seconds
+    gameState.kitchenPressure = 0; // Reset pressure
+    
+    // Enhanced mastery benefits
+    player.dinkAccuracy = 1.0;
+    player.noNetFaults = true;
+    player.noOutOfBounds = true;
+    player.speed = PLAYER_SPEED * 1.3; // 30% speed boost
+    
+    showMessage('KITCHEN MASTERY ACTIVE!', COURT_WIDTH/2, COURT_HEIGHT/2, '#FFD700', 120);
+    // Update button immediately
+    updateMasteryButton(0);
+}
+        
+        // ENHANCED Flash kitchen zone
+        function flashKitchenZone(isPlayerSide) {
+            const flashDuration = 1000;
+            const startTime = Date.now();
+            
+            const flashInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                if (elapsed > flashDuration) {
+                    clearInterval(flashInterval);
+                    gameState.kitchenFlash = null;
+                    return;
+                }
+                
+                gameState.kitchenFlash = {
+                    active: true,
+                    side: isPlayerSide ? 'bottom' : 'top',
+                    opacity: 0.5 * (1 - elapsed / flashDuration) * 
+                             Math.abs(Math.sin(elapsed * 0.01))
+                };
+            }, 16);
+        }
+        
+        // ENHANCED Dink detection
+        // NEW - Only count actual kitchen/line dinks
+      function isDinkShot(power, angle, hitter) {
+        const AT_KITCHEN_LINE = Math.abs(hitter.y - KITCHEN_LINE_BOTTOM) < 15;
+        const IN_KITCHEN = hitter.inKitchen;
+        const LOW_POWER = power < 0.3;
+        const FORWARD_ANGLE = Math.abs(angle + Math.PI/2) < Math.PI/3; // Mostly forward toward net
+        return (IN_KITCHEN || AT_KITCHEN_LINE) && LOW_POWER && FORWARD_ANGLE;
+      }
+        
+        // ENHANCED Execute dink
+        function executeDink(hitter, targetX, targetY) {
+            const isPlayerTeam = (hitter === player || hitter === partner);
+            
+            if (isPlayerTeam) {
+                targetY = KITCHEN_LINE_TOP + 15;
+            } else {
+                targetY = KITCHEN_LINE_BOTTOM - 15;
+            }
+            
+            targetX += (Math.random() - 0.5) * 30;
+            
+            const dx = targetX - ball.x;
+            const dy = targetY - ball.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            ball.vx = (dx / dist) * 80;
+            ball.vy = (dy / dist) * 80;
+            ball.vz = 60;
+            ball.speed = 80;
+            
+            showMessage('Dink!', hitter.x, hitter.y - 30, '#00BCD4', 40);
+            gameState.isDinkRally = true;
+            gameState.dinkCount++;
+            
+            if (hitter === player) {
+              updateKitchenPressure(15); // Changed from 10 to 15
+            }
+            
+            return true;
+        }
+        
+        // ENHANCED AI Kitchen Strategy
+        function updateAIKitchenStrategy(ai, dt) {
+            const isOpponent = (ai === opponent1 || ai === opponent2);
+            const ballInTheirHalf = isOpponent ? (ball.y < NET_Y) : (ball.y > NET_Y);
+            
+            if (!ai.inKitchen && !ai.shouldEnterKitchen) {
+                const shouldEnter = shouldAIEnterKitchen(ai, ball);
+                if (shouldEnter) {
+                    ai.shouldEnterKitchen = true;
+                    ai.kitchenTimer = 2.0;
+                    ai.preparingDink = true;
+                }
+            }
+            
+            if (ai.shouldEnterKitchen && !ai.inKitchen) {
+                const kitchenY = isOpponent ? KITCHEN_LINE_TOP - 10 : KITCHEN_LINE_BOTTOM + 10;
+                ai.targetY = kitchenY;
+                
+                if (Math.abs(ai.y - kitchenY) < 10) {
+                    ai.inKitchen = true;
+                    ai.shouldEnterKitchen = false;
+                    ai.wasInKitchen = true;
+                    ai.feetEstablished = false;
+                }
+            }
+            
+            if (ai.inKitchen && ball.height > 40 && !ai.exitingKitchen) {
+                ai.exitingKitchen = true;
+                const exitY = isOpponent ? KITCHEN_LINE_TOP - 30 : KITCHEN_LINE_BOTTOM + 30;
+                ai.targetY = exitY;
+            }
+            
+            if (ai.exitingKitchen && !ai.inKitchen) {
+                ai.exitingKitchen = false;
+                ai.establishmentTimer = 0.5;
+            }
+            
+            if (ai.establishmentTimer > 0) {
+                ai.establishmentTimer -= dt;
+                if (ai.establishmentTimer <= 0) {
+                    ai.feetEstablished = true;
+                    ai.wasInKitchen = false;
+                }
+            }
+            
+            if (ai.kitchenTimer > 0) {
+                ai.kitchenTimer -= dt;
+                if (ai.kitchenTimer <= 0 && ai.inKitchen) {
+                    ai.exitingKitchen = true;
+                }
+            }
+        }
+        
+        function shouldAIEnterKitchen(ai, ball) {
+          const nearNet = Math.abs(ai.y - NET_Y) < 150; // Increased from 100
+          const slowBall = ball.speed < 150; // Increased from 120
+          const lowBall = ball.height < 50; // Increased from 40
+          const ballBouncedNearKitchen = ball.bounces > 0 &&
+                Math.abs(ball.y - NET_Y) < KITCHEN_DEPTH + 20;
+            
+            // More aggressive kitchen play
+          return nearNet && (slowBall || lowBall) && Math.random() < ai.skill;
+        }
+        
+        // Update kitchen state machine
+        function updateKitchenStateMachine(dt) {
+            if (gameState.kitchenStateTimer > 0) {
+                gameState.kitchenStateTimer -= dt;
+                updateKitchenButton(); // Update timer display
+            }
+            
+            switch(gameState.kitchenState) {
+                case KitchenStates.AVAILABLE:
+                    if (gameState.kitchenStateTimer <= 0) {
+                        gameState.kitchenState = KitchenStates.DISABLED;
+                        showMessage('Opportunity missed!', COURT_WIDTH/2, NET_Y + 50, '#FF9800', 40);
+                        updateKitchenButton();
+                    }
+                    break;
+                    
+                case KitchenStates.ACTIVE:
+                    if (ball.height > 30 && ball.vy > 0 && ball.y < NET_Y) {
+                        gameState.kitchenState = KitchenStates.MUST_EXIT;
+                        gameState.kitchenStateTimer = 1.0;
+                        updateKitchenButton();
+                    }
+                    break;
+                    
+                case KitchenStates.MUST_EXIT:
+                    if (gameState.kitchenStateTimer <= 0) {
+                        gameState.kitchenState = KitchenStates.WARNING;
+                        updateKitchenButton();
+                    }
+                    break;
+                    
+                case KitchenStates.WARNING:
+                    if (player.inKitchen && ball.height > 0 && ball.y > NET_Y) {
+                        handleKitchenViolation({
+                            type: 'FAILED_EXIT',
+                            message: 'Failed to exit kitchen in time!',
+                            severe: true
+                        }, player);
+                    }
+                    break;
+                    
+                case KitchenStates.COOLDOWN:
+                    if (gameState.kitchenStateTimer <= 0) {
+                        gameState.kitchenState = KitchenStates.DISABLED;
+                        updateKitchenButton();
+                    }
+                    break;
+            }
+        }
+        
+        // Update mastery timer
+        function updateKitchenMastery(dt) {
+          if (gameState.kitchenMastery) {
+        gameState.kitchenMasteryTimer -= dt;
+        
+        // Update button to show countdown
+        const button = document.getElementById('masteryButton');
+        const percentText = document.getElementById('masteryPercent');
+        const icon = document.getElementById('masteryIcon');
+        
+        button.classList.add('active');
+        icon.textContent = 'ðŸ‘‘';
+        percentText.textContent = gameState.kitchenMasteryTimer.toFixed(1) + 's';
+            
+        if (gameState.kitchenMasteryTimer <= 0 || !gameState.ballInPlay) {
+          // End mastery
+            gameState.kitchenMastery = false;
+            player.dinkAccuracy = 0.8;
+            player.noNetFaults = false;
+            player.noOutOfBounds = false;
+            player.speed = PLAYER_SPEED;
+            
+            button.classList.remove('active');
+            showMessage('Mastery ended', COURT_WIDTH/2, NET_Y, '#FFD700', 40);
+            
+            // Reset button to show 0%
+            updateMasteryButton(0);
+        }
+          }
+        }
+        
+        // Update kitchen zone color
+        function updateKitchenZoneColor() {
+            const colors = {
+                safe: 'rgba(255, 200, 0, 0.15)',
+                warning: 'rgba(255, 150, 0, 0.25)',
+                danger: 'rgba(255, 50, 0, 0.35)'
+            };
+            
+            if (player.inKitchen && ball.height > 50) return colors.danger;
+            if (player.inKitchen && ball.height > 20) return colors.warning;
+            return colors.safe;
+        }
+        
+        // YOUR ORIGINAL SERVICE BOX VALIDATION
+        function isInCorrectServiceBox(x, y, expectedSide, servingFromTop) {
+            const isTopCourt = y < NET_Y;
+            
+            if (servingFromTop) {
+                if (!isTopCourt) {
+                    if (y > KITCHEN_LINE_BOTTOM && y < BASELINE_BOTTOM) {
+                        const landedLeft = x < COURT_WIDTH / 2;
+                        const shouldBeLeft = expectedSide === 'left';
+                        return landedLeft === shouldBeLeft;
+                    }
+                }
+            } else {
+                if (isTopCourt) {
+                    if (y > BASELINE_TOP && y < KITCHEN_LINE_TOP) {
+                        const landedLeft = x < COURT_WIDTH / 2;
+                        const shouldBeLeft = expectedSide === 'left';
+                        return landedLeft === shouldBeLeft;
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
+        // YOUR ORIGINAL INPUT HANDLING
+        let touchStart = null;
+        let touchEnd = null;
+        let swiping = false;
+        
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        
+      document.getElementById('kitchenButton').addEventListener('click', handleKitchenButton);
+      document.getElementById('masteryButton').addEventListener('click', activateKitchenMastery);
+        
+        // ENHANCED Kitchen button handler
+        function handleKitchenButton() {
+            switch(gameState.kitchenState) {
+                case KitchenStates.AVAILABLE:
+                    gameState.inKitchen = true;
+                    gameState.kitchenState = KitchenStates.ACTIVE;
+                    player.inKitchen = true;
+                    player.wasInKitchen = true;
+                    player.feetEstablished = false;
+                    player.kitchenEntryTime = Date.now();
+                    player.targetY = NET_Y + 35;
+                    updateKitchenPressure(5);
+                    updateKitchenButton();
+                    break;
+                    
+                case KitchenStates.ACTIVE:
+                case KitchenStates.MUST_EXIT:
+                case KitchenStates.WARNING:
+                    gameState.inKitchen = false;
+                    gameState.kitchenState = KitchenStates.DISABLED;
+                    player.inKitchen = false;
+                    player.establishmentTimer = 0.5;
+                    player.targetY = (KITCHEN_LINE_BOTTOM + BASELINE_BOTTOM) / 2;
+                    
+                    document.getElementById('establishmentIndicator').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('establishmentIndicator').style.display = 'none';
+                        player.feetEstablished = true;
+                        player.wasInKitchen = false;
+                        showMessage('Established!', player.x, player.y - 20, '#4CAF50', 30);
+                        updateKitchenPressure(10);
+                    }, 500);
+                    
+                    updateKitchenButton();
+                    break;
+            }
+        }
+        
+      
+        // ENHANCED Update kitchen button
+        function updateKitchenButton() {
+            const button = document.getElementById('kitchenButton');
+            const text = document.getElementById('kitchenText');
+            const timer = document.getElementById('kitchenTimer');
+            
+            button.className = '';
+            timer.textContent = '';
+            
+            switch (gameState.kitchenState) {
+                case KitchenStates.AVAILABLE:
+                    button.className = 'available';
+                    text.textContent = 'â†’K';
+                    if (gameState.kitchenStateTimer > 0) {
+                        timer.textContent = gameState.kitchenStateTimer.toFixed(1);
+                    }
+                    break;
+                case KitchenStates.ACTIVE:
+                    button.className = 'active';
+                    text.textContent = 'IN';
+                    break;
+                case KitchenStates.MUST_EXIT:
+                    button.className = 'must_exit';
+                    text.textContent = 'â†!';
+                    if (gameState.kitchenStateTimer > 0) {
+                        timer.textContent = gameState.kitchenStateTimer.toFixed(1);
+                    }
+                    break;
+                case KitchenStates.WARNING:
+                    button.className = 'warning';
+                    text.textContent = '!!';
+                    break;
+                case KitchenStates.COOLDOWN:
+                    button.className = 'cooldown';
+                    text.textContent = '...';
+                    if (gameState.kitchenStateTimer > 0) {
+                        timer.textContent = gameState.kitchenStateTimer.toFixed(1);
+                    }
+                    break;
+                default:
+                    text.textContent = 'K';
+            }
+        }
+        
+        // YOUR ORIGINAL TOUCH HANDLERS
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            touchStart = { 
+                x: e.touches[0].clientX - rect.left, 
+                y: e.touches[0].clientY - rect.top 
+            };
+            swiping = true;
+            showPowerIndicator();
+        }
+        
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!swiping) return;
+            const rect = canvas.getBoundingClientRect();
+            touchEnd = { 
+                x: e.touches[0].clientX - rect.left, 
+                y: e.touches[0].clientY - rect.top 
+            };
+            updatePowerIndicator();
+        }
+        
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            if (!swiping || !touchEnd) return;
+            handleSwipe();
+            swiping = false;
+            hidePowerIndicator();
+        }
+        
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            touchStart = { 
+                x: e.clientX - rect.left, 
+                y: e.clientY - rect.top 
+            };
+            swiping = true;
+            showPowerIndicator();
+        }
+        
+        function handleMouseMove(e) {
+            if (!swiping) return;
+            const rect = canvas.getBoundingClientRect();
+            touchEnd = { 
+                x: e.clientX - rect.left, 
+                y: e.clientY - rect.top 
+            };
+            updatePowerIndicator();
+        }
+        
+        function handleMouseUp(e) {
+            if (!swiping || !touchEnd) return;
+            handleSwipe();
+            swiping = false;
+            hidePowerIndicator();
+        }
+        
+        function handleSwipe() {
+            if (gameState.waitingForServe && player.isServing) {
+                playerServe();
+                return;
+            }
+            
+            if (!player.canHit || !gameState.ballInPlay) return;
+            
+            const dx = touchEnd.x - touchStart.x;
+            const dy = touchEnd.y - touchStart.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            
+            if (distance < 30) return;
+            
+            const power = Math.min(distance / 250, 1);
+            const angle = Math.atan2(dy, dx);
+            
+            // ENHANCED shot type detection
+            let shotType = 'normal';
+            let speed = 220;
+            let arc = 100;
+            
+            if (isDinkShot(power, angle, player.y)) {
+                shotType = 'dink';
+                speed = 80;
+                arc = 60;
+            } else if (power < 0.3 && Math.abs(dy) < 50) {
+                shotType = 'drop';
+                speed = 100;
+                arc = 140;
+            } else if (power > 0.7) {
+                shotType = 'power';
+                speed = 320;
+                arc = 80;
+            }
+            
+            // Apply mastery bonuses
+            if (gameState.kitchenMastery) {
+                if (shotType === 'dink') {
+                    speed *= 1.2;
+                    arc *= 0.8;
+                }
+            }
+            
+            hitBall(player, angle, speed, arc, shotType);
+            touchStart = null;
+            touchEnd = null;
+        }
+        
+        // ENHANCED hitBall function - YOUR ORIGINAL + KITCHEN ENHANCEMENTS
+        function hitBall(hitter, angle, speed, arc, shotType) {
+            // Store position for momentum check
+            if (ball.height > 0) {
+                hitter.volleyPosition = { x: hitter.x, y: hitter.y };
+                hitter.momentumTimer = 1.5;
+            }
+            
+            // Check for violations
+            const violation = checkComprehensiveKitchenViolation(hitter);
+            if (violation) {
+                handleKitchenViolation(violation, hitter);
+                return;
+            }
+            
+            // YOUR ORIGINAL double bounce check
+            if (!gameState.secondBounceComplete && ball.height > 80) {
+                if (gameState.consecutiveHits === 0) {
+                    showRuleViolation('Must let serve bounce!');
+                    faultOccurred(hitter === player || hitter === partner ? 'player' : 'opponent');
+                    return;
+                } else if (gameState.consecutiveHits === 1) {
+                    showRuleViolation('Must let return bounce!');
+                    faultOccurred(hitter === player || hitter === partner ? 'player' : 'opponent');
+                    return;
+                }
+            }
+            
+            // Mark establishment if hitting from ground
+            if (hitter.inKitchen && ball.height === 0) {
+                hitter.wasInKitchen = false;
+                hitter.feetEstablished = true;
+            }
+            
+            // Special handling for dinks
+            if (shotType === 'dink' && (hitter.inKitchen || Math.abs(hitter.y - NET_Y) < KITCHEN_DEPTH + 30)) {
+                const isPlayerTeam = (hitter === player || hitter === partner);
+                const targetX = isPlayerTeam ? 
+                    (opponent1.x + opponent2.x) / 2 : 
+                    (player.x + partner.x) / 2;
+                const targetY = isPlayerTeam ? KITCHEN_LINE_TOP + 20 : KITCHEN_LINE_BOTTOM - 20;
+                
+                if (executeDink(hitter, targetX, targetY)) {
+                    ball.lastHitBy = hitter;
+                    ball.lastHitTeam = isPlayerTeam ? 'player' : 'opponent';
+                    ball.bounces = 0;
+                    ball.bouncePositions = [];
+                    ball.inFlight = true;
+                    hitter.lastHitTime = Date.now();
+                    hitter.canHit = false;
+                    gameState.consecutiveHits++;
+                    
+                    if (gameState.consecutiveHits === 2) {
+                        gameState.secondBounceComplete = true;
+                    }
+                    
+                    return;
+                }
+            }
+            
+            // YOUR ORIGINAL shot execution
+            let targetAngle = angle;
+            const isPlayerTeam = (hitter === player || hitter === partner);
+            
+            if (isPlayerTeam) {
+                if (targetAngle > -Math.PI * 0.1) targetAngle = -Math.PI/3;
+                targetAngle = Math.max(targetAngle, -Math.PI * 0.75);
+                targetAngle = Math.min(targetAngle, -Math.PI * 0.25);
+            } else {
+                if (targetAngle < Math.PI * 0.1) targetAngle = Math.PI/3;
+                targetAngle = Math.max(targetAngle, Math.PI * 0.25);
+                targetAngle = Math.min(targetAngle, Math.PI * 0.75);
+            }
+            
+            if (hitter !== player) {
+                targetAngle += (Math.random() - 0.5) * 0.3;
+                if (Math.random() > hitter.skill) {
+                    speed *= 0.8 + Math.random() * 0.4;
+                    targetAngle += (Math.random() - 0.5) * 0.5;
+                }
+            }
+            
+            ball.vx = Math.cos(targetAngle) * speed;
+            ball.vy = Math.sin(targetAngle) * speed;
+            ball.vz = arc;
+            ball.lastHitBy = hitter;
+            ball.lastHitTeam = isPlayerTeam ? 'player' : 'opponent';
+            ball.bounces = 0;
+            ball.bouncePositions = [];
+            ball.inFlight = true;
+            ball.speed = speed;
+            gameState.bouncesOnCurrentSide = 0;
+            
+            gameState.isServeInProgress = false;
+            gameState.expectedServiceBox = null;
+            
+            hitter.lastHitTime = Date.now();
+            hitter.canHit = false;
+            
+            gameState.consecutiveHits++;
+          gameState.rallyLength++;
+            if (gameState.consecutiveHits === 2) {
+                gameState.secondBounceComplete = true;
+            }
+            
+            if (ball.lastHitTeam !== gameState.lastHitTeam) {
+                gameState.rallyCount++;
+                gameState.lastHitTeam = ball.lastHitTeam;
+            }
+            
+            updateUI();
+            
+            // ENHANCED shot feedback with pressure
+            let color = '#4CAF50';
+            if (shotType === 'power') {
+                color = '#FF5722';
+                updateKitchenPressure(5);
+            } else if (shotType === 'dink') {
+                color = '#00BCD4';
+                updateKitchenPressure(15);
+            } else if (shotType === 'drop') {
+                color = '#FFD600';
+                updateKitchenPressure(5);
+            }
+            
+            showMessage(shotType.charAt(0).toUpperCase() + shotType.slice(1) + '!', 
+                       hitter.x, hitter.y - 30, color);
+            
+            // Update kitchen state after hit
+            if (gameState.kitchenState === KitchenStates.ACTIVE && hitter === player) {
+                if (ball.height > 0) {
+                    gameState.kitchenState = KitchenStates.MUST_EXIT;
+                    gameState.kitchenStateTimer = 1.0;
+                    updateKitchenButton();
+                }
+            }
+        }
+        
+        function showPowerIndicator() {
+            document.getElementById('powerIndicator').style.display = 'block';
+        }
+        
+        function updatePowerIndicator() {
+            if (!touchStart || !touchEnd) return;
+            const distance = Math.sqrt(Math.pow(touchEnd.x - touchStart.x, 2) + 
+                                      Math.pow(touchEnd.y - touchStart.y, 2));
+            const power = Math.min(distance / 250, 1) * 100;
+            document.getElementById('powerBar').style.width = power + '%';
+        }
+        
+        function hidePowerIndicator() {
+            document.getElementById('powerIndicator').style.display = 'none';
+            document.getElementById('powerBar').style.width = '0%';
+        }
+        
+        // YOUR ORIGINAL GAME LOOP
+        let lastTime = 0;
+        function gameLoop(currentTime) {
+            const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.033);
+            lastTime = currentTime;
+            
+            if (gameState.gameActive) {
+                update(deltaTime);
+            }
+            render();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // YOUR ORIGINAL UPDATE WITH KITCHEN ENHANCEMENTS
+        function update(dt) {
+            if (!gameState.ballInPlay && !gameState.waitingForServe) return;
+            
+            // Update kitchen systems
+            updateKitchenStateMachine(dt);
+            updateKitchenMastery(dt);
+            
+            if (gameState.ballInPlay) {
+                // Check momentum violations
+                checkMomentumViolations(dt);
+                
+                // YOUR ORIGINAL ball physics
+                const prevY = ball.y;
+                
+                ball.x += ball.vx * dt;
+                ball.y += ball.vy * dt;
+                ball.height += ball.vz * dt;
+                ball.vz -= GRAVITY * dt;
+                
+                ball.trail.push({ x: ball.x, y: ball.y, height: ball.height });
+                if (ball.trail.length > 25) ball.trail.shift();
+                
+                const justCrossedNet = (prevY < NET_Y && ball.y >= NET_Y) || 
+                                       (prevY > NET_Y && ball.y <= NET_Y);
+                if (justCrossedNet) {
+                    gameState.bouncesOnCurrentSide = 0;
+                    gameState.isDinkRally = false;
+                }
+                
+                // YOUR ORIGINAL bounce logic
+                if (ball.height <= 0 && ball.vz < 0) {
+                    ball.height = 0;
+                    ball.vz = -ball.vz * 0.65;
+                    ball.vx *= 0.85;
+                    ball.vy *= 0.85;
+                    ball.bounces++;
+                    gameState.bouncesOnCurrentSide++;
+                    
+                    const bounceSide = ball.y < NET_Y ? 'opponent' : 'player';
+                  
+                   // ADD THIS - Check baseline violations
+    if (ball.bounces === 1) { // First bounce
+        if (bounceSide === 'player') {
+            if (ball.y > BASELINE_BOTTOM) {
+                showMessage('Long!', ball.x, BASELINE_BOTTOM, '#F44336');
+                showRuleViolation('Out - Past baseline!');
+                faultOccurred('opponent'); // Opponent's shot was out
+                return;
+            }
+        } else { // opponent side
+            if (ball.y < BASELINE_TOP) {
+                showMessage('Long!', ball.x, BASELINE_TOP, '#F44336');
+                showRuleViolation('Out - Past baseline!');
+                faultOccurred('player'); // Player's shot was out
+                return;
+            }
+        }
+    }
+                  
+                    ball.bouncePositions.push({ 
+                        x: ball.x, 
+                        y: ball.y, 
+                        time: Date.now(), 
+                        side: bounceSide 
+                    });
+                    ball.bouncePositions = ball.bouncePositions.filter(b => Date.now() - b.time < 3000);
+                    
+                    // YOUR ORIGINAL fault checks
+                    if (ball.bounces === 1 && !gameState.isServeInProgress) {
+                        if ((ball.lastHitTeam === 'player' && bounceSide === 'player') || 
+                            (ball.lastHitTeam === 'opponent' && bounceSide === 'opponent')) {
+                            showMessage('Own Court!', ball.x, ball.y, '#F44336');
+                            showRuleViolation('Fault - Ball bounced on own side!');
+                            faultOccurred(ball.lastHitTeam);
+                            return;
+                        }
+                    }
+                    
+                    // YOUR ORIGINAL service fault checking
+                    if (gameState.isServeInProgress && ball.bounces === 1) {
+                        const servingFromTop = gameState.servingTeam === 'opponent';
+                        
+                        const visualBounds = getVisualCourtBounds(ball.y);
+                        if (ball.x < visualBounds.left || ball.x > visualBounds.right || 
+                            ball.y < 0 || ball.y > COURT_HEIGHT) {
+                            showMessage('Service Out!', ball.x, ball.y, '#F44336');
+                            showRuleViolation('Service Fault - Out of Bounds!');
+                            faultOccurred(gameState.servingTeam);
+                            return;
+                        }
+                        
+                        if (servingFromTop) {
+                            if (ball.y >= NET_Y && ball.y <= KITCHEN_LINE_BOTTOM) {
+                                showMessage('Kitchen Fault!', ball.x, ball.y, '#F44336');
+                                showRuleViolation('Service Fault - Ball in Kitchen!');
+                                faultOccurred(gameState.servingTeam);
+                                return;
+                            }
+                        } else {
+                            if (ball.y <= NET_Y && ball.y >= KITCHEN_LINE_TOP) {
+                                showMessage('Kitchen Fault!', ball.x, ball.y, '#F44336');
+                                showRuleViolation('Service Fault - Ball in Kitchen!');
+                                faultOccurred(gameState.servingTeam);
+                                return;
+                            }
+                        }
+                        
+                        if (!isInCorrectServiceBox(ball.x, ball.y, 
+                                                   gameState.expectedServiceBox, 
+                                                   servingFromTop)) {
+                            showMessage('Wrong Box!', ball.x, ball.y, '#F44336');
+                            showRuleViolation('Service Fault - Wrong Service Box!');
+                            faultOccurred(gameState.servingTeam);
+                            return;
+                        }
+                        
+                        gameState.isServeInProgress = false;
+                        gameState.expectedServiceBox = null;
+                        showMessage('Good Serve!', ball.x, ball.y, '#4CAF50', 30);
+                    }
+                    
+                    if (ball.bounces === 1 && gameState.consecutiveHits === 1) {
+                        gameState.firstBounceComplete = true;
+                    }
+                    
+                    // ENHANCED Kitchen entry opportunity
+                    if (ball.y >= NET_Y && ball.y <= KITCHEN_LINE_BOTTOM && 
+                        !gameState.inKitchen && gameState.bouncesOnCurrentSide === 1 &&
+                        gameState.kitchenState === KitchenStates.DISABLED) {
+                        gameState.kitchenState = KitchenStates.AVAILABLE;
+                        gameState.kitchenStateTimer = 2.5;
+                        updateKitchenButton();
+                    }
+                    
+                    // YOUR ORIGINAL double bounce fault
+                    if (gameState.bouncesOnCurrentSide >= 2) {
+                        const faultTeam = bounceSide;
+                        showMessage('Double Bounce!', ball.x, ball.y, '#F44336');
+                        faultOccurred(faultTeam);
+                        return;
+                    }
+                }
+                
+                // YOUR ORIGINAL out of bounds check
+                const visualBounds = getVisualCourtBounds(ball.y);
+                if (!gameState.isServeInProgress && 
+                    (ball.x < visualBounds.left - 10 || ball.x > visualBounds.right + 10 || 
+                     ball.y < -10 || ball.y > COURT_HEIGHT + 10)) {
+                  // If mastery active and player hit it, keep it in bounds
+    if (gameState.kitchenMastery && ball.lastHitBy === player) {
+        // Bounce ball back in bounds instead of fault
+        if (ball.x < visualBounds.left) ball.vx = Math.abs(ball.vx);
+        if (ball.x > visualBounds.right) ball.vx = -Math.abs(ball.vx);
+        if (ball.y < 0) ball.vy = Math.abs(ball.vy);
+        if (ball.y > COURT_HEIGHT) ball.vy = -Math.abs(ball.vy);
+        showMessage('Saved!', ball.x, ball.y, '#FFD700', 30);
+    } else {
+                    let faultTeam;
+                    if (ball.bounces > 0) {
+                        const lastBounceSide = ball.y < NET_Y ? 'opponent' : 'player';
+                        faultTeam = lastBounceSide;
+                        showMessage('Missed Return!', 
+                                   Math.max(visualBounds.left, Math.min(ball.x, visualBounds.right)), 
+                                   Math.max(0, Math.min(ball.y, COURT_HEIGHT)), 
+                                   '#F44336');
+                    } else {
+                        faultTeam = ball.lastHitTeam;
+                        showMessage('Out!', 
+                                   Math.max(visualBounds.left, Math.min(ball.x, visualBounds.right)), 
+                                   Math.max(0, Math.min(ball.y, COURT_HEIGHT)), 
+                                   '#F44336');
+                    }
+                    faultOccurred(faultTeam);
+                    return;
+                }
+                }
+                
+                // YOUR ORIGINAL dead ball check
+                if (Math.abs(ball.vx) < 10 && Math.abs(ball.vy) < 10 && ball.height < 5) {
+                    const faultTeam = ball.lastHitTeam === 'player' ? 'opponent' : 'player';
+                    showMessage('Dead Ball', ball.x, ball.y, '#FF9800');
+                    faultOccurred(faultTeam);
+                    return;
+                }
+                
+                updatePlayerMovement(dt);
+                updateAIPartner(dt);
+                updateOpponents(dt);
+            }
+            
+            // Update establishment timers for all players
+            [player, partner, opponent1, opponent2].forEach(person => {
+                if (person.establishmentTimer > 0) {
+                    person.establishmentTimer -= dt;
+                    if (person.establishmentTimer <= 0) {
+                        person.feetEstablished = true;
+                        person.wasInKitchen = false;
+                    }
+                }
+            });
+            
+            messages = messages.filter(msg => {
+                msg.life--;
+                msg.y += msg.vy;
+                return msg.life > 0;
+            });
+            
+            // ENHANCED debug info
+            document.getElementById('debugInfo').innerHTML = `
+                S:${Math.round(ball.speed)} H:${Math.round(ball.height)} B:${gameState.bouncesOnCurrentSide}<br>
+                K:${player.inKitchen ? 'IN' : 'OUT'} 
+                E:${player.feetEstablished ? 'âœ“' : 'âœ—'} 
+                M:${player.momentumTimer > 0 ? player.momentumTimer.toFixed(1) : '0'}
+                V:${gameState.kitchenViolations.player}<br>
+                D:${gameState.dinkCount} ${gameState.isDinkRally ? 'ðŸ“' : ''}
+                ${gameState.kitchenMastery ? 'â­' : ''}
+            `;
+        }
+        
+        // YOUR ORIGINAL PLAYER MOVEMENT WITH KITCHEN TRACKING
+        function updatePlayerMovement(dt) {
+            if (!gameState.ballInPlay) return;
+            
+            const wasInKitchen = player.inKitchen;
+            
+            const ballOnOurSide = ball.y > NET_Y;
+            
+            if (ballOnOurSide && ball.inFlight) {
+                const timeToReach = Math.max(0, (player.y - ball.y) / Math.max(ball.vy, 1));
+                const predictedX = ball.x + ball.vx * timeToReach * 0.3;
+                const inPlayerZone = (player.courtSide === 'right' && predictedX > COURT_WIDTH / 2) || 
+                                     (player.courtSide === 'left' && predictedX <= COURT_WIDTH / 2);
+                
+                if (inPlayerZone || Math.abs(predictedX - player.x) < 80) {
+                    const visualBounds = getVisualCourtBounds(player.y);
+                    player.targetX = Math.max(visualBounds.left + 15, 
+                                            Math.min(predictedX, visualBounds.right - 15));
+                    if (!gameState.inKitchen) {
+                        const targetY = Math.min(BASELINE_BOTTOM - 20, 
+                                                Math.max(KITCHEN_LINE_BOTTOM + 10, ball.y + 15));
+                        player.targetY = targetY;
+                    }
+                }
+            } else if (!gameState.inKitchen && !player.isServing) {
+                player.targetX = player.courtSide === 'right' ? COURT_WIDTH * 0.7 : COURT_WIDTH * 0.3;
+                player.targetY = BASELINE_BOTTOM - SERVICE_LINE_DEPTH;
+            }
+            
+            const moveSpeed = player.speed * (gameState.kitchenMastery ? player.kitchenSpeed : 1.0) * dt;
+            const dx = player.targetX - player.x;
+            const dy = player.targetY - player.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist > moveSpeed) {
+                player.x += (dx / dist) * moveSpeed;
+                player.y += (dy / dist) * moveSpeed;
+            } else {
+                player.x = player.targetX;
+                player.y = player.targetY;
+            }
+            
+            const visualBounds = getVisualCourtBounds(player.y);
+            player.x = Math.max(visualBounds.left + 10, Math.min(player.x, visualBounds.right - 10));
+            
+            if (!player.inKitchen) {
+                player.y = Math.max(KITCHEN_LINE_BOTTOM + 5, Math.min(player.y, BASELINE_BOTTOM - 10));
+            } else {
+                player.y = Math.max(NET_Y + 10, Math.min(player.y, KITCHEN_LINE_BOTTOM - 5));
+            }
+            
+            // Check if entered/exited kitchen zone
+            const nowInKitchen = player.inKitchen;
+            if (!wasInKitchen && nowInKitchen) {
+                player.kitchenEntryTime = Date.now();
+                player.wasInKitchen = true;
+                player.feetEstablished = false;
+            } else if (wasInKitchen && !nowInKitchen && !player.feetEstablished) {
+                player.establishmentTimer = 0.5;
+            }
+            
+            const distToBall = Math.sqrt(Math.pow(ball.x - player.x, 2) + 
+                                         Math.pow(ball.y - player.y, 2));
+            const timeSinceHit = Date.now() - player.lastHitTime;
+            player.canHit = distToBall < HIT_DISTANCE && ball.height < 40 && 
+                           ball.y > NET_Y && ball.inFlight && timeSinceHit > HIT_COOLDOWN;
+        }
+        
+        // YOUR ORIGINAL AI PARTNER WITH KITCHEN INTELLIGENCE
+        function updateAIPartner(dt) {
+            if (!gameState.ballInPlay) return;
+            
+            // Update kitchen strategy
+            updateAIKitchenStrategy(partner, dt);
+            
+            const ballOnOurSide = ball.y > NET_Y;
+            
+            if (ballOnOurSide && ball.inFlight) {
+                const timeToReach = Math.max(0, (partner.y - ball.y) / Math.max(ball.vy, 1));
+                const predictedX = ball.x + ball.vx * timeToReach * 0.3;
+                const inPartnerZone = (partner.courtSide === 'left' && predictedX <= COURT_WIDTH / 2) || 
+                                      (partner.courtSide === 'right' && predictedX > COURT_WIDTH / 2);
+                
+                if (inPartnerZone || (Math.abs(predictedX - partner.x) < 
+                                      Math.abs(predictedX - player.x) * 0.7)) {
+                    const visualBounds = getVisualCourtBounds(partner.y);
+                    partner.targetX = Math.max(visualBounds.left + 15, 
+                                              Math.min(predictedX, visualBounds.right - 15));
+                    if (!partner.inKitchen) {
+                        const targetY = Math.min(BASELINE_BOTTOM - 20, 
+                                                Math.max(KITCHEN_LINE_BOTTOM + 10, ball.y + 15));
+                        partner.targetY = targetY;
+                    }
+                } else if (!partner.inKitchen) {
+                    partner.targetX = partner.courtSide === 'left' ? COURT_WIDTH * 0.3 : COURT_WIDTH * 0.7;
+                    partner.targetY = BASELINE_BOTTOM - SERVICE_LINE_DEPTH;
+                }
+            } else if (!partner.isServing && !partner.inKitchen) {
+                partner.targetX = partner.courtSide === 'left' ? COURT_WIDTH * 0.3 : COURT_WIDTH * 0.7;
+                partner.targetY = BASELINE_BOTTOM - SERVICE_LINE_DEPTH;
+            }
+            
+            const moveSpeed = partner.speed * dt;
+            const dx = partner.targetX - partner.x;
+            const dy = partner.targetY - partner.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist > moveSpeed) {
+                partner.x += (dx / dist) * moveSpeed;
+                partner.y += (dy / dist) * moveSpeed;
+            } else {
+                partner.x = partner.targetX;
+                partner.y = partner.targetY;
+            }
+            
+            // Update kitchen status
+            const wasInKitchen = partner.inKitchen;
+            partner.inKitchen = partner.y >= NET_Y && partner.y <= KITCHEN_LINE_BOTTOM &&
+                               Math.abs(partner.x - COURT_WIDTH/2) < COURT_WIDTH/2;
+            
+            if (!wasInKitchen && partner.inKitchen) {
+                partner.kitchenEntryTime = Date.now();
+                partner.wasInKitchen = true;
+                partner.feetEstablished = false;
+            } else if (wasInKitchen && !partner.inKitchen && !partner.feetEstablished) {
+                partner.establishmentTimer = 0.5;
+            }
+            
+            const visualBounds = getVisualCourtBounds(partner.y);
+            partner.x = Math.max(visualBounds.left + 10, Math.min(partner.x, visualBounds.right - 10));
+            
+            if (!partner.inKitchen) {
+                partner.y = Math.max(KITCHEN_LINE_BOTTOM + 5, Math.min(partner.y, BASELINE_BOTTOM - 10));
+            } else {
+                partner.y = Math.max(NET_Y + 10, Math.min(partner.y, KITCHEN_LINE_BOTTOM - 5));
+            }
+            
+            const distToBall = Math.sqrt(Math.pow(ball.x - partner.x, 2) + 
+                                         Math.pow(ball.y - partner.y, 2));
+            const timeSinceHit = Date.now() - partner.lastHitTime;
+            partner.canHit = distToBall < HIT_DISTANCE && ball.height < 40 && 
+              ball.y > NET_Y && ball.inFlight && 
+              timeSinceHit > partner.hitCooldown && !player.canHit &&
+              ball.lastHitTeam === 'opponent'; // ADD THIS LINE
+            
+            // AI decision to hit
+            if (partner.canHit && Math.random() < partner.skill * dt * 3) {
+                // Check if should dink
+                if (partner.preparingDink && partner.inKitchen) {
+                    const targetX = (opponent1.x + opponent2.x) / 2;
+                    executeDink(partner, targetX, KITCHEN_LINE_TOP + 20);
+                    partner.preparingDink = false;
+                } else {
+                    const angle = -Math.PI/2 + (Math.random() - 0.5) * 0.6;
+                    const speed = 180 + Math.random() * 80;
+                    const arc = 90 + Math.random() * 40;
+                    hitBall(partner, angle, speed, arc, 'normal');
+                }
+            }
+        }
+        
+        // YOUR ORIGINAL OPPONENTS WITH KITCHEN INTELLIGENCE
+        function updateOpponents(dt) {
+            if (!gameState.ballInPlay) return;
+            
+            [opponent1, opponent2].forEach((opp, index) => {
+                // Update kitchen strategy
+                updateAIKitchenStrategy(opp, dt);
+                
+                const ballOnTheirSide = ball.y < NET_Y;
+                
+                if (ballOnTheirSide && ball.inFlight) {
+                    const timeToReach = Math.max(0, (ball.y - opp.y) / Math.min(ball.vy, -1));
+                    const predictedX = ball.x + ball.vx * timeToReach * 0.3;
+                    const inOppZone = (opp.courtSide === 'right' && predictedX > COURT_WIDTH / 2) || 
+                                     (opp.courtSide === 'left' && predictedX <= COURT_WIDTH / 2);
+                    const otherOpp = index === 0 ? opponent2 : opponent1;
+                    
+                    if (inOppZone || Math.abs(predictedX - opp.x) < 
+                                    Math.abs(predictedX - otherOpp.x) * 0.7) {
+                        const visualBounds = getVisualCourtBounds(opp.y);
+                        opp.targetX = Math.max(visualBounds.left + 15, 
+                                              Math.min(predictedX, visualBounds.right - 15));
+                        if (!opp.inKitchen) {
+                            const targetY = Math.max(BASELINE_TOP + 20, 
+                                                    Math.min(KITCHEN_LINE_TOP - 10, ball.y - 15));
+                            opp.targetY = targetY;
+                        }
+                    } else if (!opp.inKitchen) {
+                        opp.targetX = opp.courtSide === 'left' ? COURT_WIDTH * 0.3 : COURT_WIDTH * 0.7;
+                        opp.targetY = BASELINE_TOP + SERVICE_LINE_DEPTH;
+                    }
+                } else if (!opp.isServing && !opp.inKitchen) {
+                    opp.targetX = opp.courtSide === 'left' ? COURT_WIDTH * 0.3 : COURT_WIDTH * 0.7;
+                    opp.targetY = BASELINE_TOP + SERVICE_LINE_DEPTH;
+                }
+                
+                const moveSpeed = opp.speed * dt;
+                const dx = opp.targetX - opp.x;
+                const dy = opp.targetY - opp.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist > moveSpeed) {
+                    opp.x += (dx / dist) * moveSpeed;
+                    opp.y += (dy / dist) * moveSpeed;
+                } else {
+                    opp.x = opp.targetX;
+                    opp.y = opp.targetY;
+                }
+                
+                // Update kitchen status
+                const wasInKitchen = opp.inKitchen;
+                opp.inKitchen = opp.y <= NET_Y && opp.y >= KITCHEN_LINE_TOP &&
+                               Math.abs(opp.x - COURT_WIDTH/2) < COURT_WIDTH/2;
+                
+                if (!wasInKitchen && opp.inKitchen) {
+                    opp.kitchenEntryTime = Date.now();
+                    opp.wasInKitchen = true;
+                    opp.feetEstablished = false;
+                } else if (wasInKitchen && !opp.inKitchen && !opp.feetEstablished) {
+                    opp.establishmentTimer = 0.5;
+                }
+                
+                const visualBounds = getVisualCourtBounds(opp.y);
+                opp.x = Math.max(visualBounds.left + 10, Math.min(opp.x, visualBounds.right - 10));
+                
+                if (!opp.inKitchen) {
+                    opp.y = Math.max(BASELINE_TOP + 10, Math.min(opp.y, KITCHEN_LINE_TOP - 5));
+                } else {
+                    opp.y = Math.max(KITCHEN_LINE_TOP + 5, Math.min(opp.y, NET_Y - 10));
+                }
+                
+                const distToBall = Math.sqrt(Math.pow(ball.x - opp.x, 2) + 
+                                             Math.pow(ball.y - opp.y, 2));
+                const timeSinceHit = Date.now() - opp.lastHitTime;
+                const otherOppCanHit = index === 0 ? opponent2.canHit : opponent1.canHit;
+                
+                opp.canHit = distToBall < HIT_DISTANCE && ball.height < 40 && 
+                  ball.y < NET_Y && ball.inFlight && 
+                  timeSinceHit > opp.hitCooldown && !otherOppCanHit &&
+                  ball.lastHitTeam === 'player'; // ADD THIS LINE
+                
+                // AI decision to hit
+                if (opp.canHit && Math.random() < opp.skill * dt * 3) {
+                    // Check if should dink
+                    if (opp.preparingDink && opp.inKitchen) {
+                        const targetX = (player.x + partner.x) / 2;
+                        executeDink(opp, targetX, KITCHEN_LINE_BOTTOM - 20);
+                        opp.preparingDink = false;
+                    } else {
+                        const targetPlayer = Math.random() < 0.7 ? player : partner;
+                        const dx = targetPlayer.x - ball.x;
+                        const dy = targetPlayer.y - ball.y;
+                        let angle = Math.atan2(dy, dx);
+                        
+                        angle += (Math.random() - 0.5) * 0.3;
+                        
+                        const speed = 180 + Math.random() * 80;
+                        const arc = 90 + Math.random() * 40;
+                        hitBall(opp, angle, speed, arc, 'normal');
+                    }
+                }
+            });
+        }
+        
+        // YOUR ORIGINAL GAME FLOW FUNCTIONS WITH KITCHEN RESET
+        function faultOccurred(faultingTeam) {
+            const winningTeam = faultingTeam === 'player' ? 'opponent' : 'player';
+            pointScored(winningTeam);
+        }
+        
+        function pointScored(winningTeam) {
+            gameState.ballInPlay = false;
+            gameState.firstBounceComplete = false;
+            gameState.secondBounceComplete = false;
+            gameState.consecutiveHits = 0;
+            gameState.bouncesOnCurrentSide = 0;
+          gameState.rallyLength = 0;
+            
+            // Reset kitchen states
+            gameState.kitchenState = KitchenStates.DISABLED;
+            gameState.kitchenStateTimer = 0;
+            gameState.inKitchen = false;
+            gameState.isServeInProgress = false;
+            gameState.expectedServiceBox = null;
+            gameState.isDinkRally = false;
+            gameState.dinkCount = 0;
+            
+            // Reset all players' kitchen states
+            [player, partner, opponent1, opponent2].forEach(p => {
+                p.inKitchen = false;
+                p.wasInKitchen = false;
+                p.feetEstablished = true;
+                p.momentumTimer = 0;
+                p.volleyPosition = null;
+                p.establishmentTimer = 0;
+            });
+            
+            updateKitchenButton();
+            
+          if (gameState.rallyLength > 10) {
+        updateKitchenPressure(20); // Reward for long rally
+        showMessage('Long Rally Bonus!', COURT_WIDTH/2, COURT_HEIGHT/2, '#4CAF50', 60);
+    }
+          
+            if (gameState.servingTeam === winningTeam) {
+                if (winningTeam === 'player') {
+                    gameState.playerScore++;
+                    switchPlayerSides();
+                    updateKitchenPressure(15); // Reward for winning point on serve
+                } else {
+                    gameState.opponentScore++;
+                    switchOpponentSides();
+                }
+                showMessage('Point!', COURT_WIDTH/2, COURT_HEIGHT/2, '#4CAF50', 90);
+            } else {
+                if (gameState.isFirstServeOfGame) {
+                    gameState.servingTeam = winningTeam;
+                    gameState.serverNumber = 1;
+                    gameState.isFirstServeOfGame = false;
+                    showMessage('Side Out!', COURT_WIDTH/2, COURT_HEIGHT/2, '#FF9800', 90);
+                } else if (gameState.serverNumber === 1) {
+                    gameState.serverNumber = 2;
+                    showMessage('Second Server', COURT_WIDTH/2, COURT_HEIGHT/2, '#FFC107', 90);
+                } else {
+                    gameState.servingTeam = winningTeam;
+                    gameState.serverNumber = 1;
+                    showMessage('Side Out!', COURT_WIDTH/2, COURT_HEIGHT/2, '#FF9800', 90);
+                }
+            }
+            
+            gameState.rallyCount = 0;
+            messages = [];
+            
+            if ((gameState.playerScore >= 11 || gameState.opponentScore >= 11) && 
+                Math.abs(gameState.playerScore - gameState.opponentScore) >= 2) {
+                const winner = gameState.playerScore > gameState.opponentScore ? 'You' : 'Opponent';
+                showMessage(`${winner} Win!`, COURT_WIDTH/2, COURT_HEIGHT/2, '#FFD700', 300);
+                gameState.gameActive = false;
+                document.getElementById('instructions').textContent = `Game Over - ${winner} Win!`;
+                
+                // Final pressure bonus
+                if (winner === 'You') {
+                    updateKitchenPressure(50);
+                }
+                return;
+            }
+            
+            setTimeout(() => {
+                resetPositions();
+                updateUI();
+            }, 1500);
+        }
+        
+        // YOUR ORIGINAL SIDE SWITCHING
+        function switchPlayerSides() {
+            const temp = player.courtSide;
+            player.courtSide = partner.courtSide;
+            partner.courtSide = temp;
+        }
+        
+        function switchOpponentSides() {
+            const temp = opponent1.courtSide;
+            opponent1.courtSide = opponent2.courtSide;
+            opponent2.courtSide = temp;
+        }
+        
+        function getServerSide(team, score, serverNumber) {
+            const isEvenScore = (score % 2) === 0;
+            if (serverNumber === 1) {
+                return isEvenScore ? 'right' : 'left';
+            } else {
+                return isEvenScore ? 'left' : 'right';
+            }
+        }
+        
+        // YOUR ORIGINAL RESET POSITIONS
+        function resetPositions() {
+            player.isServing = false;
+            partner.isServing = false;
+            opponent1.isServing = false;
+            opponent2.isServing = false;
+            
+            if (gameState.servingTeam === 'player') {
+                const serverSide = getServerSide('player', gameState.playerScore, gameState.serverNumber);
+                
+                if (gameState.serverNumber === 1) {
+                    player.isServing = true;
+                    player.courtSide = serverSide;
+                    partner.courtSide = serverSide === 'right' ? 'left' : 'right';
+                    gameState.currentServer = player;
+                } else {
+                    partner.isServing = true;
+                    partner.courtSide = serverSide;
+                    player.courtSide = serverSide === 'right' ? 'left' : 'right';
+                    gameState.currentServer = partner;
+                }
+                
+                player.x = player.courtSide === 'right' ? COURT_WIDTH * 0.75 : COURT_WIDTH * 0.25;
+                player.y = player.isServing ? BASELINE_BOTTOM - BASELINE_OFFSET : BASELINE_BOTTOM - SERVICE_LINE_DEPTH;
+                player.targetX = player.x;
+                player.targetY = player.y;
+                
+                partner.x = partner.courtSide === 'right' ? COURT_WIDTH * 0.75 : COURT_WIDTH * 0.25;
+                partner.y = partner.isServing ? BASELINE_BOTTOM - BASELINE_OFFSET : BASELINE_BOTTOM - SERVICE_LINE_DEPTH;
+                partner.targetX = partner.x;
+                partner.targetY = partner.y;
+                
+                opponent1.courtSide = 'right';
+                opponent2.courtSide = 'left';
+                opponent1.x = COURT_WIDTH * 0.75;
+                opponent1.y = BASELINE_TOP + SERVICE_LINE_DEPTH;
+                opponent2.x = COURT_WIDTH * 0.25;
+                opponent2.y = BASELINE_TOP + SERVICE_LINE_DEPTH;
+            } else {
+                const serverSide = getServerSide('opponent', gameState.opponentScore, gameState.serverNumber);
+                
+                if (gameState.serverNumber === 1) {
+                    opponent1.isServing = true;
+                    opponent1.courtSide = serverSide;
+                    opponent2.courtSide = serverSide === 'right' ? 'left' : 'right';
+                    gameState.currentServer = opponent1;
+                } else {
+                    opponent2.isServing = true;
+                    opponent2.courtSide = serverSide;
+                    opponent1.courtSide = serverSide === 'right' ? 'left' : 'right';
+                    gameState.currentServer = opponent2;
+                }
+                
+                opponent1.x = opponent1.courtSide === 'right' ? COURT_WIDTH * 0.75 : COURT_WIDTH * 0.25;
+                opponent1.y = opponent1.isServing ? BASELINE_TOP + BASELINE_OFFSET : BASELINE_TOP + SERVICE_LINE_DEPTH;
+                
+                opponent2.x = opponent2.courtSide === 'right' ? COURT_WIDTH * 0.75 : COURT_WIDTH * 0.25;
+                opponent2.y = opponent2.isServing ? BASELINE_TOP + BASELINE_OFFSET : BASELINE_TOP + SERVICE_LINE_DEPTH;
+                
+                player.courtSide = 'right';
+                partner.courtSide = 'left';
+                player.x = COURT_WIDTH * 0.75;
+                player.y = BASELINE_BOTTOM - SERVICE_LINE_DEPTH;
+                player.targetX = player.x;
+                player.targetY = player.y;
+                partner.x = COURT_WIDTH * 0.25;
+                partner.y = BASELINE_BOTTOM - SERVICE_LINE_DEPTH;
+                partner.targetX = partner.x;
+                partner.targetY = partner.y;
+            }
+            
+            updateServerDisplay();
+            
+            gameState.waitingForServe = true;
+            gameState.canServe = gameState.servingTeam === 'player' && player.isServing;
+            
+            if (gameState.canServe) {
+                document.getElementById('instructions').textContent = 'Your serve - Swipe up!';
+            } else if (gameState.servingTeam === 'player' && partner.isServing) {
+                document.getElementById('instructions').textContent = 'Partner serving...';
+                setTimeout(() => partnerServe(), 2000);
+            } else {
+                document.getElementById('instructions').textContent = 'Opponent serving...';
+                setTimeout(() => opponentServe(), 2000);
+            }
+        }
+        
+        // YOUR ORIGINAL SERVE FUNCTIONS
+        function playerServe() {
+            if (!gameState.canServe || !player.isServing) return;
+            
+            gameState.ballInPlay = true;
+            gameState.waitingForServe = false;
+            gameState.canServe = false;
+            gameState.consecutiveHits = 0;
+            gameState.firstBounceComplete = false;
+            gameState.secondBounceComplete = false;
+            gameState.lastHitTeam = 'player';
+            gameState.bouncesOnCurrentSide = 0;
+            gameState.isServeInProgress = true;
+            
+            const targetSide = player.courtSide === 'right' ? 'left' : 'right';
+            gameState.expectedServiceBox = targetSide;
+            
+            ball.x = player.x;
+            ball.y = player.y - 15;
+            
+            const targetX = targetSide === 'left' ? COURT_WIDTH * 0.25 : COURT_WIDTH * 0.75;
+            const targetY = (BASELINE_TOP + KITCHEN_LINE_TOP) / 2;
+            
+            const angle = Math.atan2(targetY - ball.y, targetX - ball.x);
+            const serveSpeed = 160;
+            ball.vx = Math.cos(angle) * serveSpeed;
+            ball.vy = Math.sin(angle) * serveSpeed;
+            ball.vz = 180;
+            ball.height = 40;
+            
+            ball.lastHitBy = player;
+            ball.lastHitTeam = 'player';
+            ball.trail = [];
+            ball.bounces = 0;
+            ball.bouncePositions = [];
+            ball.inFlight = true;
+            ball.speed = serveSpeed;
+            
+            gameState.gameActive = true;
+            gameState.rallyCount = 0;
+            
+            showMessage('Serve!', player.x, player.y - 30, '#FFFFFF');
+            document.getElementById('instructions').textContent = 'Rally in play!';
+        }
+        
+        function partnerServe() {
+            if (!partner.isServing) return;
+            
+            gameState.ballInPlay = true;
+            gameState.waitingForServe = false;
+            gameState.consecutiveHits = 0;
+            gameState.firstBounceComplete = false;
+            gameState.secondBounceComplete = false;
+            gameState.lastHitTeam = 'player';
+            gameState.bouncesOnCurrentSide = 0;
+            gameState.isServeInProgress = true;
+            
+            const targetSide = partner.courtSide === 'right' ? 'left' : 'right';
+            gameState.expectedServiceBox = targetSide;
+            
+            ball.x = partner.x;
+            ball.y = partner.y - 15;
+            
+            const targetX = targetSide === 'left' ? COURT_WIDTH * 0.25 : COURT_WIDTH * 0.75;
+            const targetY = (BASELINE_TOP + KITCHEN_LINE_TOP) / 2;
+            
+            const angle = Math.atan2(targetY - ball.y, targetX - ball.x);
+            const serveSpeed = 160;
+            ball.vx = Math.cos(angle) * serveSpeed;
+            ball.vy = Math.sin(angle) * serveSpeed;
+            ball.vz = 180;
+            ball.height = 40;
+            
+            ball.lastHitBy = partner;
+            ball.lastHitTeam = 'player';
+            ball.trail = [];
+            ball.bounces = 0;
+            ball.bouncePositions = [];
+            ball.inFlight = true;
+            ball.speed = serveSpeed;
+            
+            gameState.gameActive = true;
+            gameState.rallyCount = 0;
+            
+            showMessage('Partner Serves!', partner.x, partner.y - 30, '#2196F3');
+            document.getElementById('instructions').textContent = 'Rally in play!';
+        }
+        
+        function opponentServe() {
+            const server = opponent1.isServing ? opponent1 : opponent2;
+            
+            gameState.ballInPlay = true;
+            gameState.waitingForServe = false;
+            gameState.consecutiveHits = 0;
+            gameState.firstBounceComplete = false;
+            gameState.secondBounceComplete = false;
+            gameState.lastHitTeam = 'opponent';
+            gameState.bouncesOnCurrentSide = 0;
+            gameState.isServeInProgress = true;
+            
+            const targetSide = server.courtSide === 'right' ? 'left' : 'right';
+            gameState.expectedServiceBox = targetSide;
+            
+            ball.x = server.x;
+            ball.y = server.y + 15;
+            
+            const targetX = targetSide === 'left' ? COURT_WIDTH * 0.25 : COURT_WIDTH * 0.75;
+            const targetY = (KITCHEN_LINE_BOTTOM + BASELINE_BOTTOM) / 2;
+            
+            const angle = Math.atan2(targetY - ball.y, targetX - ball.x);
+            const serveSpeed = 160;
+            ball.vx = Math.cos(angle) * serveSpeed;
+            ball.vy = Math.sin(angle) * serveSpeed;
+            ball.vz = 180;
+            ball.height = 40;
+            
+            ball.lastHitBy = server;
+            ball.lastHitTeam = 'opponent';
+            ball.trail = [];
+            ball.bounces = 0;
+            ball.bouncePositions = [];
+            ball.inFlight = true;
+            ball.speed = serveSpeed;
+            
+            gameState.gameActive = true;
+            gameState.rallyCount = 0;
+            
+            showMessage('Opponent Serves!', server.x, server.y + 30, '#CC3333');
+            document.getElementById('instructions').textContent = 'Rally in play!';
+        }
+        
+        function updateServerDisplay() {
+            let serverName = '';
+            if (player.isServing) serverName = 'You';
+            else if (partner.isServing) serverName = 'Partner';
+            else if (opponent1.isServing) serverName = 'Opp1';
+            else if (opponent2.isServing) serverName = 'Opp2';
+            
+            document.getElementById('servingTeam').textContent = serverName;
+        }
+        
+        function updateUI() {
+            document.getElementById('playerScore').textContent = gameState.playerScore;
+            document.getElementById('opponentScore').textContent = gameState.opponentScore;
+            document.getElementById('serverNumber').textContent = gameState.serverNumber;
+            document.getElementById('rallyCount').textContent = gameState.rallyCount;
+            document.getElementById('violationCount').textContent = gameState.kitchenViolations.player;
+            updateServerDisplay();
+        }
+        
+        // YOUR ORIGINAL RENDER FUNCTION WITH KITCHEN ENHANCEMENTS
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            
+            // Draw background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.3, '#98D8E8');
+            gradient.addColorStop(0.3, '#6B8E6B');
+            gradient.addColorStop(1, '#4A5D4E');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            drawCourt();
+            drawBounceIndicators();
+            
+            // Draw players (back to front for proper layering)
+            if (opponent1.y < opponent2.y) {
+                drawPlayer(opponent1, '#CC3333', 'O1');
+                drawPlayer(opponent2, '#CC3333', 'O2');
+            } else {
+                drawPlayer(opponent2, '#CC3333', 'O2');
+                drawPlayer(opponent1, '#CC3333', 'O1');
+            }
+            
+            if (partner.y < player.y) {
+                drawPlayer(partner, '#2196F3', 'P');
+                drawPlayer(player, '#3366CC', 'Y');
+            } else {
+                drawPlayer(player, '#3366CC', 'Y');
+                drawPlayer(partner, '#2196F3', 'P');
+            }
+            
+            if (gameState.ballInPlay) drawBall();
+            
+            // Draw hit indicator
+            if (player.canHit) {
+                const screenPos = courtToScreen(player.x, player.y);
+                ctx.strokeStyle = '#4CAF50';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 3]);
+                ctx.beginPath();
+                ctx.arc(screenPos.x, screenPos.y, HIT_DISTANCE * 0.8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            // Draw establishment indicators
+            [player, partner, opponent1, opponent2].forEach(person => {
+                if (person.wasInKitchen && !person.feetEstablished) {
+                    const screenPos = courtToScreen(person.x, person.y);
+                    ctx.strokeStyle = '#FF9800';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(screenPos.x, screenPos.y, 25, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    if (person === player) {
+                        ctx.fillStyle = '#FF9800';
+                        ctx.font = 'bold 10px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('ESTABLISH', screenPos.x, screenPos.y - 30);
+                    }
+                }
+            });
+            
+            // Draw messages
+            messages.forEach(msg => {
+                ctx.fillStyle = msg.color;
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(msg.text, msg.x, msg.y);
+            });
+            
+            // Draw mastery effect
+            if (gameState.kitchenMastery) {
+                const { centerX, courtTop } = getCourtScreenPosition();
+                const glowRadius = 150 + Math.sin(Date.now() * 0.005) * 20;
+                const gradient = ctx.createRadialGradient(
+                    centerX, courtTop + NET_Y * 0.9, 0,
+                    centerX, courtTop + NET_Y * 0.9, glowRadius
+                );
+                gradient.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+                gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.restore();
+        }
+        
+        // YOUR ORIGINAL DRAW COURT WITH KITCHEN ENHANCEMENTS
+        function drawCourt() {
+            const { centerX, courtTop } = getCourtScreenPosition();
+            
+            // Court surface with perspective
+            ctx.fillStyle = '#2E7D32';
+            ctx.beginPath();
+            
+            const topLeftX = centerX - (COURT_WIDTH / 2) * PERSPECTIVE_SCALE;
+            const topRightX = centerX + (COURT_WIDTH / 2) * PERSPECTIVE_SCALE;
+            const bottomLeftX = centerX - COURT_WIDTH / 2;
+            const bottomRightX = centerX + COURT_WIDTH / 2;
+            
+            ctx.moveTo(topLeftX, courtTop);
+            ctx.lineTo(topRightX, courtTop);
+            ctx.lineTo(bottomRightX, courtTop + COURT_HEIGHT * 0.9);
+            ctx.lineTo(bottomLeftX, courtTop + COURT_HEIGHT * 0.9);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Add court texture lines
+            ctx.strokeStyle = '#236B35';
+            ctx.lineWidth = 1;
+            for(let i = 0; i <= 10; i++) {
+                const y = i / 10;
+                const leftX = topLeftX + (bottomLeftX - topLeftX) * y;
+                const rightX = topRightX + (bottomRightX - topRightX) * y;
+                const screenY = courtTop + COURT_HEIGHT * 0.9 * y;
+                
+                ctx.beginPath();
+                ctx.moveTo(leftX, screenY);
+                ctx.lineTo(rightX, screenY);
+                ctx.stroke();
+            }
+            
+            // Kitchen zones with dynamic coloring
+            const kitchenColor = updateKitchenZoneColor();
+            
+            const netScreenPos = courtToScreen(COURT_WIDTH/2, NET_Y);
+            const kitchenTopScreenPos = courtToScreen(COURT_WIDTH/2, KITCHEN_LINE_TOP);
+            const kitchenBottomScreenPos = courtToScreen(COURT_WIDTH/2, KITCHEN_LINE_BOTTOM);
+            
+            const topKitchenScale = 1 - (1 - PERSPECTIVE_SCALE) * (1 - KITCHEN_LINE_TOP / COURT_HEIGHT);
+            const netScale = 1 - (1 - PERSPECTIVE_SCALE) * (1 - NET_Y / COURT_HEIGHT);
+            const bottomKitchenScale = 1 - (1 - PERSPECTIVE_SCALE) * (1 - KITCHEN_LINE_BOTTOM / COURT_HEIGHT);
+            
+            // Top kitchen
+            ctx.fillStyle = kitchenColor;
+            ctx.beginPath();
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * topKitchenScale, kitchenTopScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * topKitchenScale, kitchenTopScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.lineTo(centerX - (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Bottom kitchen with flash effect
+            if (gameState.kitchenFlash && gameState.kitchenFlash.active && 
+                gameState.kitchenFlash.side === 'bottom') {
+                ctx.fillStyle = `rgba(255, 0, 0, ${gameState.kitchenFlash.opacity})`;
+            } else {
+                ctx.fillStyle = kitchenColor;
+            }
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * bottomKitchenScale, kitchenBottomScreenPos.y);
+            ctx.lineTo(centerX - (COURT_WIDTH/2) * bottomKitchenScale, kitchenBottomScreenPos.y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Kitchen labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('KITCHEN', centerX, netScreenPos.y - 30);
+            ctx.fillText('KITCHEN', centerX, netScreenPos.y + 35);
+            
+            // YOUR ORIGINAL COURT LINES
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            
+            // Outer boundary
+            ctx.beginPath();
+            ctx.moveTo(topLeftX, courtTop);
+            ctx.lineTo(topRightX, courtTop);
+            ctx.lineTo(bottomRightX, courtTop + COURT_HEIGHT * 0.9);
+            ctx.lineTo(bottomLeftX, courtTop + COURT_HEIGHT * 0.9);
+            ctx.closePath();
+            ctx.stroke();
+            
+            // Baselines
+            ctx.lineWidth = 2;
+            const baselineTopPos = courtToScreen(COURT_WIDTH/2, BASELINE_TOP);
+            const baselineBottomPos = courtToScreen(COURT_WIDTH/2, BASELINE_BOTTOM);
+            const baselineTopScale = 1 - (1 - PERSPECTIVE_SCALE) * (1 - BASELINE_TOP / COURT_HEIGHT);
+            const baselineBottomScale = 1 - (1 - PERSPECTIVE_SCALE) * (1 - BASELINE_BOTTOM / COURT_HEIGHT);
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * baselineTopScale, baselineTopPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * baselineTopScale, baselineTopPos.y);
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * baselineBottomScale, baselineBottomPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * baselineBottomScale, baselineBottomPos.y);
+            ctx.stroke();
+            
+            // Kitchen lines
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 3]);
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * topKitchenScale, kitchenTopScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * topKitchenScale, kitchenTopScreenPos.y);
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * bottomKitchenScale, kitchenBottomScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * bottomKitchenScale, kitchenBottomScreenPos.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Net
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.stroke();
+            
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX - (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.lineTo(centerX + (COURT_WIDTH/2) * netScale, netScreenPos.y);
+            ctx.stroke();
+            
+            // Service center lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, baselineTopPos.y);
+            ctx.lineTo(centerX, kitchenTopScreenPos.y);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, kitchenBottomScreenPos.y);
+            ctx.lineTo(centerX, baselineBottomPos.y);
+            ctx.stroke();
+            
+            // Service box labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.font = '9px Arial';
+            
+            const topServiceY = (BASELINE_TOP + KITCHEN_LINE_TOP) / 2;
+            const bottomServiceY = (KITCHEN_LINE_BOTTOM + BASELINE_BOTTOM) / 2;
+            
+            const topLeftLabel = courtToScreen(COURT_WIDTH * 0.25, topServiceY);
+            const topRightLabel = courtToScreen(COURT_WIDTH * 0.75, topServiceY);
+            const bottomLeftLabel = courtToScreen(COURT_WIDTH * 0.25, bottomServiceY);
+            const bottomRightLabel = courtToScreen(COURT_WIDTH * 0.75, bottomServiceY);
+            
+            ctx.fillText('L', topLeftLabel.x, topLeftLabel.y);
+            ctx.fillText('R', topRightLabel.x, topRightLabel.y);
+            ctx.fillText('L', bottomLeftLabel.x, bottomLeftLabel.y);
+            ctx.fillText('R', bottomRightLabel.x, bottomRightLabel.y);
+        }
+        
+        // YOUR ORIGINAL DRAW FUNCTIONS
+        function drawBounceIndicators() {
+            ball.bouncePositions.forEach(pos => {
+                const age = Date.now() - pos.time;
+                const opacity = Math.max(0, 1 - age / 3000);
+                ctx.strokeStyle = `rgba(255, 100, 0, ${opacity * 0.6})`;
+                ctx.lineWidth = 2;
+                const size = 8;
+                
+                const screenPos = courtToScreen(pos.x, pos.y);
+                
+                ctx.beginPath();
+                ctx.moveTo(screenPos.x - size, screenPos.y - size);
+                ctx.lineTo(screenPos.x + size, screenPos.y + size);
+                ctx.moveTo(screenPos.x + size, screenPos.y - size);
+                ctx.lineTo(screenPos.x - size, screenPos.y + size);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(screenPos.x, screenPos.y, size * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+        }
+        
+        function drawPlayer(playerObj, color, label) {
+            const screenPos = courtToScreen(playerObj.x, playerObj.y);
+            const perspectiveFactor = 1 - (1 - PERSPECTIVE_SCALE) * (1 - playerObj.y / COURT_HEIGHT);
+            const size = playerObj.size * perspectiveFactor;
+            
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(screenPos.x, screenPos.y + 3, size * 0.8, size * 0.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Player circle - with mastery effect
+            let playerColor = color;
+            if (playerObj === player && gameState.kitchenMastery) {
+                playerColor = '#FFD700';
+            }
+            ctx.fillStyle = playerColor;
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(screenPos.x, screenPos.y, size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Kitchen indicator
+            if (playerObj.inKitchen) {
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([3, 2]);
+                ctx.beginPath();
+                ctx.arc(screenPos.x, screenPos.y, size + 4, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            // Court side indicator
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${9 * perspectiveFactor}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText(playerObj.courtSide === 'right' ? 'R' : 'L', screenPos.x, screenPos.y + 3);
+            
+            // Name label
+            ctx.fillStyle = 'white';
+            ctx.font = `${10 * perspectiveFactor}px Arial`;
+            ctx.fillText(label, screenPos.x, screenPos.y - size - 5);
+            
+            // Serving indicator
+            if (playerObj.isServing) {
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.arc(screenPos.x, screenPos.y, size + 6, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        
+        function drawBall() {
+            // Ball trail
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+            ctx.lineWidth = BALL_RADIUS * 1.5;
+            ctx.beginPath();
+            ball.trail.forEach((point, i) => {
+                const opacity = i / ball.trail.length;
+                ctx.globalAlpha = opacity * 0.5;
+                const screenPos = courtToScreen(point.x, point.y);
+                const visualY = screenPos.y - point.height * 0.15;
+                
+                if (i === 0) {
+                    ctx.moveTo(screenPos.x, visualY);
+                } else {
+                    ctx.lineTo(screenPos.x, visualY);
+                }
+            });
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            
+            const ballScreenPos = courtToScreen(ball.x, ball.y);
+            const perspectiveFactor = 1 - (1 - PERSPECTIVE_SCALE) * (1 - ball.y / COURT_HEIGHT);
+            
+            // Shadow
+            const shadowSize = (10 + ball.height * 0.08) * perspectiveFactor;
+            const shadowOpacity = Math.max(0.15, 0.5 - ball.height * 0.003);
+            ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
+            ctx.beginPath();
+            ctx.ellipse(ballScreenPos.x, ballScreenPos.y, shadowSize, shadowSize * 0.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Ball
+            const visualY = ballScreenPos.y - ball.height * 0.18;
+            const ballSize = BALL_RADIUS * perspectiveFactor * (1 + ball.height * 0.002);
+            
+            const gradient = ctx.createRadialGradient(
+                ballScreenPos.x - ballSize/3, visualY - ballSize/3, 0,
+                ballScreenPos.x, visualY, ballSize
+            );
+            gradient.addColorStop(0, '#FFFF66');
+            gradient.addColorStop(0.6, '#FFD700');
+            gradient.addColorStop(1, '#FFA500');
+            
+            ctx.fillStyle = gradient;
+            ctx.strokeStyle = '#FF8C00';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(ballScreenPos.x, visualY, ballSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Height indicator
+            if (ball.height > 25) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(ballScreenPos.x, ballScreenPos.y);
+                ctx.lineTo(ballScreenPos.x, visualY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        
+        function initGame() {
+            gameState.gameActive = true;
+            gameState.servingTeam = 'player';
+            gameState.serverNumber = 2;
+            gameState.isFirstServeOfGame = true;
+            resetPositions();
+            updateUI();
+            updateKitchenButton();
+            document.getElementById('instructions').textContent = 'Welcome! Swipe to play';
+        }
+        
+        initGame();
+        requestAnimationFrame(gameLoop);
+        
+        // Keyboard controls for testing - YOUR ORIGINAL
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                if (player.canHit) {
+                    hitBall(player, -Math.PI/2.5, 200, 95, 'normal');
+                } else if (gameState.waitingForServe && player.isServing) {
+                    playerServe();
+                }
+            } else if (e.key === 'r') {
+                gameState.playerScore = 0;
+                gameState.opponentScore = 0;
+                gameState.serverNumber = 2;
+                gameState.isFirstServeOfGame = true;
+                gameState.kitchenPressure = 0;
+                gameState.kitchenViolations = { player: 0, opponent: 0 };
+                updateKitchenPressure(0);
+                initGame();
+            } else if (e.key === 'k') {
+                handleKitchenButton();
+            }
+        });
+      // Initialize on game start
+      document.addEventListener('DOMContentLoaded', function() {
+        updateMasteryButton(0);
+      });
+    </script>
+</body>
+</html>

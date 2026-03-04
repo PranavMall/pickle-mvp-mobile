@@ -6,13 +6,28 @@ extends CanvasLayer
 func _ready() -> void:
 	await get_tree().process_frame
 
+	# CRITICAL: Make ALL UI Controls pass-through for touch events
+	# Without this, the HUD Control eats all touch input on Android
+	_make_all_children_pass_through(self)
+
 	# Setup UI elements
 	setup_top_panel()
 	setup_instructions()
 	setup_power_indicator()
 
-	# DON'T touch Kitchen/Mastery buttons - they setup themselves!
-	print("UISetup ready - buttons manage themselves")
+	print("UISetup ready - ALL controls set pass-through for touch")
+
+func _make_all_children_pass_through(node: Node) -> void:
+	"""Recursively set mouse_filter on ALL Control nodes"""
+	if node is Control:
+		# Buttons get PASS so they still work for their own clicks
+		# but don't block swipe input from reaching the scene
+		if node is Button:
+			node.mouse_filter = Control.MOUSE_FILTER_PASS
+		else:
+			node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child in node.get_children():
+		_make_all_children_pass_through(child)
 
 func setup_top_panel() -> void:
 	var top_panel = get_node_or_null("HUD/TopPanel")
